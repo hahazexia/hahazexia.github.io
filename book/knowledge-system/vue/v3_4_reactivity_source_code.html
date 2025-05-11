@@ -743,6 +743,16 @@ function triggerEffect(
 </ul>
 </li>
 </ol>
+<ul>
+<li>有点像发布订阅模式，但不完全一样
+<ul>
+<li>有三个模块互相作用实现了响应式，1. 响应式数据 proxy 对象 2. effect 副作用函数（背后是 reactiveEffect）3. targetMap 结构</li>
+<li>proxy 的 getter 收集依赖，依赖存在 targetMap 结构中，setter 触发依赖，从 targetMap 结构中找到对应依赖，也就找到了 effect 副作用函数</li>
+<li>targetMap 的结构是两层，第一层 key 是响应式数据，value 是一个 map 对象，第二层 map 对象的 key 是响应式数据的属性，value 是收集到的 reactiveEffect 组成的 set 数组</li>
+<li>所以，响应式数据 proxy 对象就是发布者，effect 函数是订阅者，只是订阅关系没有放到 proxy 对象中，而是放在了一个 weakMap 结构中单独存储（targetMap）</li>
+</ul>
+</li>
+</ul>
 
                     </main>
 

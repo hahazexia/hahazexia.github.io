@@ -19174,6 +19174,16 @@ function triggerEffect(
 </ul>
 </li>
 </ol>
+<ul>
+<li>有点像发布订阅模式，但不完全一样
+<ul>
+<li>有三个模块互相作用实现了响应式，1. 响应式数据 proxy 对象 2. effect 副作用函数（背后是 reactiveEffect）3. targetMap 结构</li>
+<li>proxy 的 getter 收集依赖，依赖存在 targetMap 结构中，setter 触发依赖，从 targetMap 结构中找到对应依赖，也就找到了 effect 副作用函数</li>
+<li>targetMap 的结构是两层，第一层 key 是响应式数据，value 是一个 map 对象，第二层 map 对象的 key 是响应式数据的属性，value 是收集到的 reactiveEffect 组成的 set 数组</li>
+<li>所以，响应式数据 proxy 对象就是发布者，effect 函数是订阅者，只是订阅关系没有放到 proxy 对象中，而是放在了一个 weakMap 结构中单独存储（targetMap）</li>
+</ul>
+</li>
+</ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="实现-reactivity"><a class="header" href="#实现-reactivity">实现 reactivity</a></h1>
 <h2 id="weakmap"><a class="header" href="#weakmap">WeakMap</a></h2>
 <ul>
@@ -19663,6 +19673,964 @@ export function isRef(r: any): r is Ref {
 <ul>
 <li>ref 的意义是为了处理简单数据无法使用 Proxy 的情况，使用自定义类 RefImpl 的 get 和 set 属性来模拟 Proxy 的 getter 和 setter，实现响应式的效果。因此使用的时候必须使用 <code>.value</code> 来主动触发 getter 和 setter</li>
 <li>而复杂数据的处理依然走 reactive 方法</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="computed-源码"><a class="header" href="#computed-源码">computed 源码</a></h1>
+<ul>
+<li>计算属性 computed 会基于其响应式依赖被缓存，并且在依赖的响应式数据发生变化时重新计算</li>
+</ul>
+<pre><code class="language-html">&lt;script&gt;
+  const { reactive, effect, computed } = Vue;
+
+  const obj = reactive({
+    name: '张三',
+  });
+
+  const computedObj = computed(() =&gt; {
+    return '姓名： ' + obj.name;
+  });
+
+  effect(() =&gt; {
+    document.querySelector('#app').innerText = computedObj.value;
+  });
+
+  setTimeout(() =&gt; {
+    obj.name = '李四';
+  }, 2000);
+&lt;/script&gt;
+</code></pre>
+<h2 id="coumputed"><a class="header" href="#coumputed">coumputed</a></h2>
+<ol>
+<li>
+<p>computed 调用后，我们传递给 computed 的函数被设置为 getter，setter 没有设置是空函数，然后创建 ComputedRefImpl 实例</p>
+<pre><code class="language-ts">export function computed&lt;T&gt;(
+  getterOrOptions: ComputedGetter&lt;T&gt; | WritableComputedOptions&lt;T&gt;,
+  debugOptions?: DebuggerOptions,
+  isSSR = false
+) {
+  let getter: ComputedGetter&lt;T&gt;;
+  let setter: ComputedSetter&lt;T&gt;;
+
+  const onlyGetter = isFunction(getterOrOptions);
+  if (onlyGetter) {
+    // 传递给 computed 的函数被设置为 getter
+    getter = getterOrOptions;
+    // setter 没有设置是空函数
+    setter = __DEV__
+      ? () =&gt; {
+          console.warn('Write operation failed: computed value is readonly');
+        }
+      : NOOP;
+  } else {
+    getter = getterOrOptions.get;
+    setter = getterOrOptions.set;
+  }
+
+  // 创建 ComputedRefImpl 实例
+  const cRef = new ComputedRefImpl(
+    getter,
+    setter,
+    onlyGetter || !setter,
+    isSSR
+  );
+
+  if (__DEV__ &amp;&amp; debugOptions &amp;&amp; !isSSR) {
+    cRef.effect.onTrack = debugOptions.onTrack;
+    cRef.effect.onTrigger = debugOptions.onTrigger;
+  }
+
+  return cRef as any;
+}
+</code></pre>
+</li>
+<li>
+<p>创建 ComputedRefImpl 实例</p>
+<pre><code class="language-ts">export class ComputedRefImpl&lt;T&gt; {
+  // dep属性 是一个 set 数组，里面存放的都是收集到的 reactiveEffect 依赖，和之前的 refImpl 类一样
+  public dep?: Dep = undefined;
+
+  private _value!: T;
+  public readonly effect: ReactiveEffect&lt;T&gt;;
+
+  // ref 标识符为 true
+  public readonly __v_isRef = true;
+  public readonly [ReactiveFlags.IS_READONLY]: boolean;
+
+  // 脏变量为 true（有重要作用）
+  public _dirty = true;
+  public _cacheable: boolean;
+
+  constructor(
+    getter: ComputedGetter&lt;T&gt;,
+    private readonly _setter: ComputedSetter&lt;T&gt;,
+    isReadonly: boolean,
+    isSSR: boolean
+  ) {
+    // 新建了一个 ReactiveEffect，第一个参数 getter 就是传递给 computed 的函数，也就是说传递给 computed 的函数和使用 effect api 时候传递给 effect 的函数是一样的效果，就是依赖触发时的 fn
+    this.effect = new ReactiveEffect(getter, () =&gt; {
+      // 判断脏变量如果不是 true，就让脏变量变成 true，然后触发依赖
+      // 因此可以得知 _dirty 脏变量用来控制什么时候触发依赖
+      if (!this._dirty) {
+        this._dirty = true;
+        triggerRefValue(this);
+      }
+    });
+    this.effect.computed = this;
+    this.effect.active = this._cacheable = !isSSR;
+    this[ReactiveFlags.IS_READONLY] = isReadonly;
+  }
+
+  get value() {
+    // the computed ref may get wrapped by other proxies e.g. readonly() #3376
+    const self = toRaw(this);
+    trackRefValue(self);
+    if (self._dirty || !self._cacheable) {
+      self._dirty = false;
+      self._value = self.effect.run()!;
+    }
+    return self._value;
+  }
+
+  set value(newValue: T) {
+    this._setter(newValue);
+  }
+}
+</code></pre>
+</li>
+<li>
+<p>接着走到 <code>effect(() =&gt; {document.querySelector('#app').innerText = computedObj.value;});</code>， 会触发 ComputedRefImpl 的 getter</p>
+<pre><code class="language-ts">export class ComputedRefImpl&lt;T&gt; {
+  // dep属性 是一个 set 数组，里面存放的都是收集到的 reactiveEffect 依赖，和之前的 refImpl 类一样
+  public dep?: Dep = undefined;
+
+  private _value!: T;
+  public readonly effect: ReactiveEffect&lt;T&gt;;
+
+  // ref 标识符为 true
+  public readonly __v_isRef = true;
+  public readonly [ReactiveFlags.IS_READONLY]: boolean;
+
+  // 脏变量为 true（有重要作用）
+  public _dirty = true;
+  public _cacheable: boolean;
+
+  constructor(
+    getter: ComputedGetter&lt;T&gt;,
+    private readonly _setter: ComputedSetter&lt;T&gt;,
+    isReadonly: boolean,
+    isSSR: boolean
+  ) {
+    // 新建了一个 ReactiveEffect，第一个参数 getter 就是传递给 computed 的函数，也就是说传递给 computed 的函数和使用 effect api 时候传递给 effect 的函数是一样的效果，就是依赖触发时的 fn
+    this.effect = new ReactiveEffect(getter, () =&gt; {
+      // 判断脏变量如果不是 true，就让脏变量变成 true，然后触发依赖
+      // 因此可以得知 _dirty 脏变量用来控制什么时候触发依赖
+      if (!this._dirty) {
+        this._dirty = true;
+        triggerRefValue(this);
+      }
+    });
+    this.effect.computed = this;
+    this.effect.active = this._cacheable = !isSSR;
+    this[ReactiveFlags.IS_READONLY] = isReadonly;
+  }
+
+  get value() {
+    // the computed ref may get wrapped by other proxies e.g. readonly() #3376
+    const self = toRaw(this);
+    // trackRefValue 收集依赖，使当前 effect 的匿名函数对应的 reactiveEffect 与当前 ComputedRefImpl 实例建立联系，类似 ref api 的逻辑
+    trackRefValue(self);
+    // getter 触发的时候，如果脏状态为 true，说明是依赖收集阶段，这里已经收集完成，将脏状态变为 false
+    if (self._dirty || !self._cacheable) {
+      self._dirty = false;
+      // 执行传递给 computed 的函数，第一次获取到计算属性的值存到 _value 里
+      // 传递给 computed 的函数是 () =&gt; {return '姓名： ' + obj.name;}，执行的时候又会触发 reactive 对象 obj 的 getter，然后进行 obj 这个 reactive 对象的依赖收集
+      self._value = self.effect.run()!;
+    }
+    return self._value;
+  }
+
+  set value(newValue: T) {
+    this._setter(newValue);
+  }
+}
+</code></pre>
+</li>
+</ol>
+<h2 id="总结-13"><a class="header" href="#总结-13">总结</a></h2>
+<ul>
+<li>先通过 proxy 创建 reactive 对象 obj</li>
+<li>computed 计算属性，内部创建 computedRefImpl 实例，包含一个 effect 属性是一个 reactiveEffect 实例，fn 就是传给 computed 的函数，这里需要重点注意 computedRefImpl 的 reactiveEffect 实例传递了第二个参数是个匿名函数，这第二个参数就是 scheduler，用于最后触发依赖的时候有用</li>
+<li>effect 语句执行，也创建了一个 reactiveEffect 实例，最后执行 effect 的 fn，会触发 computedRefImpl 的 getter，getter 会调用 trackRefValue 收集依赖。这时是建立 computedRefImpl 这个 ref 对象和 effect 的 reactiveEffect 实例之间的关联，computedRefImpl 的 dep 属性（set 数组）中就会包含 effect 的 reactiveEffect 实例</li>
+<li>computedRefImpl 的依赖收集完成后（dep 中包含 effect 的 reactiveEffect），返回第一次 computed 计算结果</li>
+<li>返回第一次 computed 计算结果的时候，因为使用了 obj.name，因此会触发 obj proxy 的 getter 收集依赖，这时候 activeEffect 是 computedRefImpl 的 reactiveEffect，于是 computedRefImpl 的 reactiveEffect 被加入到 obj 的 dep 中。</li>
+<li>computed 计算的结果，这个结果赋值给 app div 的 innerText，effect 就执行结束了，这时候页面上显示 姓名：张三</li>
+<li>定时器过 2 秒后修改 obj.name 为 李四，触发 obj 的 setter，setter 中除了修改 obj.name 的值为新值 李四，还会去触发依赖，也就是 computedRefImpl 的 reactiveEffect，这时候就不会执行 fn 了，而是判断是否有 scheduler，如果有 scheduler 就说明是计算属性，会触发 scheduler（computedRefImpl 的 reactiveEffect 实例传递的第二个参数是个匿名函数）</li>
+<li>scheduler 判断 dirty，然后调用 triggerRefValue，这时候会找到 computedRefImpl 实例的 dep 依赖，然后触发，最终调用的是 effect 的 fn，这时候 effect 的 fn 里的逻辑会拿到最新的 computed 值 李四</li>
+</ul>
+<p>简化：</p>
+<ul>
+<li>effect 触发 computedRefImpl 的 getter，computedRefImpl 实例收集依赖，和 effect 的 reactiveEffect 建立联系</li>
+<li>computed 计算值的时候触发 reactive 变量的 proxy getter，reactive 变量收集依赖，和 computedRefImpl 的 reactiveEffect 建立联系</li>
+<li>reactive 变量 setter 触发，联动会触发 computedRefImpl 的 reactiveEffect，执行 computedRefImpl 的 scheduler，scheduler 会将 dirty 变为 true，下一次 getter 获取值的时候就会重新计算最新的 computed 值，scheduler 会找到 computedRefImpl 收集的依赖中的 effect 的 reactiveEffect，最后执行的是 effect 函数，</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="实现-computed"><a class="header" href="#实现-computed">实现 computed</a></h1>
+<h2 id="computedts"><a class="header" href="#computedts">computed.ts</a></h2>
+<pre><code class="language-ts">import { isFunction } from '@vue/shared';
+import { ReactiveEffect } from './effect';
+import { Dep } from './dep';
+import { trackRefValue, triggerRefValue } from './ref';
+
+export class ComputedRefImpl&lt;T&gt; {
+  public dep?: Dep = undefined;
+  private _value!: T;
+
+  public readonly effect: ReactiveEffect&lt;T&gt;;
+
+  public readonly __v_isRef = true;
+  /**
+   * 脏：为 false 时，表示需要触发依赖。为 true 时表示需要重新执行 run 方法，获取数据。即：数据脏了
+   */
+  public _dirty = true;
+
+  constructor(getter) {
+    this.effect = new ReactiveEffect(getter, () =&gt; {
+      // 判断当前脏的状态，如果为 false，表示需要《触发依赖》
+      if (!this._dirty) {
+        // 将脏置为 true，表示需要重新计算 computed 变量
+        this._dirty = true;
+        triggerRefValue(this);
+      }
+    });
+    this.effect.computed = this;
+  }
+
+  get value() {
+    // 收集依赖
+    trackRefValue(this);
+    // 判断当前脏的状态，如果为 true ，则表示需要重新执行 run，获取最新数据
+    if (this._dirty) {
+      this._dirty = false;
+      // 执行 run 重新计算
+      this._value = this.effect.run();
+    }
+    // 返回计算之后的真实值
+    return this._value;
+  }
+}
+
+export function computed(getterOrOptions) {
+  let getter;
+  // 判断传入的参数是否为一个函数
+  let onlyGetter = isFunction(getterOrOptions);
+  // 如果是函数，则赋值给 getter
+  if (onlyGetter) {
+    getter = getterOrOptions;
+  }
+
+  const cRef = new ComputedRefImpl(getter);
+
+  return cRef;
+}
+</code></pre>
+<h2 id="triggereffects-改变执行顺序解决无限循环问题"><a class="header" href="#triggereffects-改变执行顺序解决无限循环问题">triggerEffects 改变执行顺序解决无限循环问题</a></h2>
+<pre><code class="language-ts">/**
+ * 触发 dep 中保存的依赖
+ */
+export function triggerEffects(dep: Dep) {
+  // 把 dep 构建为一个数组
+  const effects = isArray(dep) ? dep : [...dep];
+
+  // 依次触发
+  //  for (const effect of effects) {
+  //   triggerEffect(effect);
+  //  }
+  // 当 effect 里有两次使用 computed 变量，就会让 computedRefImpl 收集到两个依赖，第一个是 effect 的 reactiveEffect，第二个就是 computedRefImpl 自己的 reactiveEffect。当触发更新的时候，按照顺序执行，就会陷入无限循环。因为最开始先执行 computedRefImpl.reactiveEffect 会将 dirty 变成 true，然后再通过 computedRefImpl.dep 顺序执行两个依赖，第一先执行 effect.reactiveEffect 的时候会触发 computedRefImpl.getter，将 dirty 重新变成 false，然后第二再执行 computedRefImpl.reactiveEffect 这时候 dirty 是 false，又会重新找到 computedRefImpl.dep 两个依赖再次执行，无限循环。
+
+  // 所以修改成先优先执行 computedRefImpl.reactiveEffect, 这样的话因为还没有执行 effect.reactiveEffect 触发 computedRefImpl.getter 去改变 dirty 的值，dirty 就不会变成 false，因此碰到第二次 computedRefImpl.reactiveEffect 的时候，会跳过，避免了无限循环
+  for (const effect of effects) {
+    if (effect.computed) {
+      triggerEffect(effect);
+    }
+  }
+  for (const effect of effects) {
+    if (!effect.computed) {
+      triggerEffect(effect);
+    }
+  }
+}
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="watch-源码"><a class="header" href="#watch-源码">watch 源码</a></h1>
+<pre><code class="language-html">&lt;script&gt;
+  const { reactive, watch } = Vue;
+
+  const obj = reactive({
+    name: '张三',
+  });
+
+  watch(obj, (newValue, oldValue) =&gt; {
+    console.log(`newValue: ${newValue}, oldValue: ${oldValue}`);
+  });
+
+  setTimeout(() =&gt; {
+    obj.name = '李四';
+  }, 2000);
+&lt;/script&gt;
+</code></pre>
+<h2 id="watch-1"><a class="header" href="#watch-1">watch</a></h2>
+<pre><code class="language-ts">export function watch&lt;T = any, Immediate extends Readonly&lt;boolean&gt; = false&gt;(
+  source: T | WatchSource&lt;T&gt;,
+  cb: any,
+  options?: WatchOptions&lt;Immediate&gt;
+): WatchStopHandle {
+  if (__DEV__ &amp;&amp; !isFunction(cb)) {
+    warn(
+      `\`watch(fn, options?)\` signature has been moved to a separate API. ` +
+        `Use \`watchEffect(fn, options?)\` instead. \`watch\` now only ` +
+        `supports \`watch(source, cb, options?) signature.`
+    );
+  }
+  // 调用了 doWatch
+  return doWatch(source as any, cb, options);
+}
+</code></pre>
+<h2 id="dowatch"><a class="header" href="#dowatch">doWatch</a></h2>
+<pre><code class="language-ts">function doWatch(
+  source: WatchSource | WatchSource[] | WatchEffect | object,
+  cb: WatchCallback | null,
+  { immediate, deep, flush, onTrack, onTrigger }: WatchOptions = EMPTY_OBJ
+): WatchStopHandle {
+  if (__DEV__ &amp;&amp; !cb) {
+    if (immediate !== undefined) {
+      warn(
+        `watch() "immediate" option is only respected when using the ` +
+          `watch(source, callback, options?) signature.`
+      );
+    }
+    if (deep !== undefined) {
+      warn(
+        `watch() "deep" option is only respected when using the ` +
+          `watch(source, callback, options?) signature.`
+      );
+    }
+  }
+
+  const warnInvalidSource = (s: unknown) =&gt; {
+    warn(
+      `Invalid watch source: `,
+      s,
+      `A watch source can only be a getter/effect function, a ref, ` +
+        `a reactive object, or an array of these types.`
+    );
+  };
+
+  const instance = currentInstance;
+  let getter: () =&gt; any;
+  let forceTrigger = false;
+  let isMultiSource = false;
+
+  if (isRef(source)) {
+    getter = () =&gt; source.value;
+    forceTrigger = isShallow(source);
+  } else if (isReactive(source)) {
+    // 我们的例子中用的 reactive 变量，所以会走这里
+    // getter 设置为直接返回 reactive 数据的函数
+    getter = () =&gt; source;
+    // 监听 reactive 数据，默认 deep 为 true
+    deep = true;
+  } else if (isArray(source)) {
+    isMultiSource = true;
+    forceTrigger = source.some((s) =&gt; isReactive(s) || isShallow(s));
+    getter = () =&gt;
+      source.map((s) =&gt; {
+        if (isRef(s)) {
+          return s.value;
+        } else if (isReactive(s)) {
+          return traverse(s);
+        } else if (isFunction(s)) {
+          return callWithErrorHandling(s, instance, ErrorCodes.WATCH_GETTER);
+        } else {
+          __DEV__ &amp;&amp; warnInvalidSource(s);
+        }
+      });
+  } else if (isFunction(source)) {
+    if (cb) {
+      // getter with cb
+      getter = () =&gt;
+        callWithErrorHandling(source, instance, ErrorCodes.WATCH_GETTER);
+    } else {
+      // no cb -&gt; simple effect
+      getter = () =&gt; {
+        if (instance &amp;&amp; instance.isUnmounted) {
+          return;
+        }
+        if (cleanup) {
+          cleanup();
+        }
+        return callWithAsyncErrorHandling(
+          source,
+          instance,
+          ErrorCodes.WATCH_CALLBACK,
+          [onCleanup]
+        );
+      };
+    }
+  } else {
+    getter = NOOP;
+    __DEV__ &amp;&amp; warnInvalidSource(source);
+  }
+
+  // 2.x array mutation watch compat
+  if (__COMPAT__ &amp;&amp; cb &amp;&amp; !deep) {
+    const baseGetter = getter;
+    getter = () =&gt; {
+      const val = baseGetter();
+      if (
+        isArray(val) &amp;&amp;
+        checkCompatEnabled(DeprecationTypes.WATCH_ARRAY, instance)
+      ) {
+        traverse(val);
+      }
+      return val;
+    };
+  }
+
+  if (cb &amp;&amp; deep) {
+    const baseGetter = getter;
+    getter = () =&gt; traverse(baseGetter());
+  }
+
+  let cleanup: () =&gt; void;
+  let onCleanup: OnCleanup = (fn: () =&gt; void) =&gt; {
+    cleanup = effect.onStop = () =&gt; {
+      callWithErrorHandling(fn, instance, ErrorCodes.WATCH_CLEANUP);
+    };
+  };
+
+  // in SSR there is no need to setup an actual effect, and it should be noop
+  // unless it's eager
+  if (__SSR__ &amp;&amp; isInSSRComponentSetup) {
+    // we will also not call the invalidate callback (+ runner is not set up)
+    onCleanup = NOOP;
+    if (!cb) {
+      getter();
+    } else if (immediate) {
+      callWithAsyncErrorHandling(cb, instance, ErrorCodes.WATCH_CALLBACK, [
+        getter(),
+        isMultiSource ? [] : undefined,
+        onCleanup,
+      ]);
+    }
+    return NOOP;
+  }
+
+  let oldValue = isMultiSource ? [] : INITIAL_WATCHER_VALUE;
+  // job 非常重要 watch 的核心
+  const job: SchedulerJob = () =&gt; {
+    if (!effect.active) {
+      return;
+    }
+    if (cb) {
+      // watch(source, cb)
+      const newValue = effect.run();
+      if (
+        deep ||
+        forceTrigger ||
+        (isMultiSource
+          ? (newValue as any[]).some((v, i) =&gt;
+              hasChanged(v, (oldValue as any[])[i])
+            )
+          : hasChanged(newValue, oldValue)) ||
+        (__COMPAT__ &amp;&amp;
+          isArray(newValue) &amp;&amp;
+          isCompatEnabled(DeprecationTypes.WATCH_ARRAY, instance))
+      ) {
+        // cleanup before running cb again
+        if (cleanup) {
+          cleanup();
+        }
+        callWithAsyncErrorHandling(cb, instance, ErrorCodes.WATCH_CALLBACK, [
+          newValue,
+          // pass undefined as the old value when it's changed for the first time
+          oldValue === INITIAL_WATCHER_VALUE ? undefined : oldValue,
+          onCleanup,
+        ]);
+        oldValue = newValue;
+      }
+    } else {
+      // watchEffect
+      effect.run();
+    }
+  };
+
+  // important: mark the job as a watcher callback so that scheduler knows
+  // it is allowed to self-trigger (#1727)
+  job.allowRecurse = !!cb;
+  // 声明一个 调度器
+  let scheduler: EffectScheduler;
+  if (flush === 'sync') {
+    scheduler = job as any; // the scheduler function gets called directly
+  } else if (flush === 'post') {
+    scheduler = () =&gt; queuePostRenderEffect(job, instance &amp;&amp; instance.suspense);
+  } else {
+    // 调度器赋值
+    // default: 'pre'
+    scheduler = () =&gt; queuePreFlushCb(job);
+  }
+
+  // reactiveEffect 实例，第二个参数是调度器
+  const effect = new ReactiveEffect(getter, scheduler);
+
+  if (__DEV__) {
+    effect.onTrack = onTrack;
+    effect.onTrigger = onTrigger;
+  }
+
+  // initial run
+  if (cb) {
+    if (immediate) {
+      job();
+    } else {
+      // 计算 oldValue
+      oldValue = effect.run();
+    }
+  } else if (flush === 'post') {
+    queuePostRenderEffect(
+      effect.run.bind(effect),
+      instance &amp;&amp; instance.suspense
+    );
+  } else {
+    effect.run();
+  }
+
+  return () =&gt; {
+    effect.stop();
+    if (instance &amp;&amp; instance.scope) {
+      remove(instance.scope.effects!, effect);
+    }
+  };
+}
+</code></pre>
+<p>当定时器触发 reactive 变量 setter 的时候，触发了 triggerEffects</p>
+<pre><code class="language-ts">function triggerEffect(
+  effect: ReactiveEffect,
+  debuggerEventExtraInfo?: DebuggerEventExtraInfo
+) {
+  if (effect !== activeEffect || effect.allowRecurse) {
+    if (__DEV__ &amp;&amp; effect.onTrigger) {
+      effect.onTrigger(extend({ effect }, debuggerEventExtraInfo));
+    }
+    if (effect.scheduler) {
+      effect.scheduler();
+    } else {
+      effect.run();
+    }
+  }
+}
+</code></pre>
+<p>这里可以看到会触发 watch 的 reactiveEffect 的 scheduler，会执行 <code>scheduler = () =&gt; queuePreFlushCb(job);</code></p>
+<pre><code class="language-ts">export function queuePreFlushCb(cb: SchedulerJob) {
+  queueCb(cb, activePreFlushCbs, pendingPreFlushCbs, preFlushIndex);
+}
+</code></pre>
+<p>queuePreFlushCb 中又调用了 queueCb</p>
+<pre><code class="language-ts">function queueCb(
+  cb: SchedulerJobs,
+  activeQueue: SchedulerJob[] | null,
+  pendingQueue: SchedulerJob[],
+  index: number
+) {
+  if (!isArray(cb)) {
+    if (
+      !activeQueue ||
+      !activeQueue.includes(cb, cb.allowRecurse ? index + 1 : index)
+    ) {
+      // 将 job 函数 push 到 pendingQueue 中
+      pendingQueue.push(cb);
+    }
+  } else {
+    // if cb is an array, it is a component lifecycle hook which can only be
+    // triggered by a job, which is already deduped in the main queue, so
+    // we can skip duplicate check here to improve perf
+    pendingQueue.push(...cb);
+  }
+  // 调用 queueFlush
+  queueFlush();
+}
+</code></pre>
+<p>queueCb 将 job 函数 push 到 pendingQueue 中，然后调用 queueFlush</p>
+<pre><code class="language-ts">function queueFlush() {
+  if (!isFlushing &amp;&amp; !isFlushPending) {
+    isFlushPending = true;
+    currentFlushPromise = resolvedPromise.then(flushJobs);
+  }
+}
+</code></pre>
+<p>resolvedPromise 就是 promise.resolve()，flushJobs 被放入微任务中执行</p>
+<pre><code class="language-ts">function flushJobs(seen?: CountMap) {
+  isFlushPending = false;
+  isFlushing = true;
+  if (__DEV__) {
+    seen = seen || new Map();
+  }
+
+  // flushPreFlushCbs 中会触发 job 函数
+  flushPreFlushCbs(seen);
+
+  // Sort queue before flush.
+  // This ensures that:
+  // 1. Components are updated from parent to child. (because parent is always
+  //    created before the child so its render effect will have smaller
+  //    priority number)
+  // 2. If a component is unmounted during a parent component's update,
+  //    its update can be skipped.
+  queue.sort((a, b) =&gt; getId(a) - getId(b));
+
+  // conditional usage of checkRecursiveUpdate must be determined out of
+  // try ... catch block since Rollup by default de-optimizes treeshaking
+  // inside try-catch. This can leave all warning code unshaked. Although
+  // they would get eventually shaken by a minifier like terser, some minifiers
+  // would fail to do that (e.g. https://github.com/evanw/esbuild/issues/1610)
+  const check = __DEV__
+    ? (job: SchedulerJob) =&gt; checkRecursiveUpdates(seen!, job)
+    : NOOP;
+
+  try {
+    for (flushIndex = 0; flushIndex &lt; queue.length; flushIndex++) {
+      const job = queue[flushIndex];
+      if (job &amp;&amp; job.active !== false) {
+        if (__DEV__ &amp;&amp; check(job)) {
+          continue;
+        }
+        // console.log(`running:`, job.id)
+        callWithErrorHandling(job, null, ErrorCodes.SCHEDULER);
+      }
+    }
+  } finally {
+    flushIndex = 0;
+    queue.length = 0;
+
+    flushPostFlushCbs(seen);
+
+    isFlushing = false;
+    currentFlushPromise = null;
+    // some postFlushCb queued jobs!
+    // keep flushing until it drains.
+    if (
+      queue.length ||
+      pendingPreFlushCbs.length ||
+      pendingPostFlushCbs.length
+    ) {
+      flushJobs(seen);
+    }
+  }
+}
+</code></pre>
+<p>flushJobs 中调用了 flushPreFlushCbs，flushPreFlushCbs 中触发了 job 函数</p>
+<pre><code class="language-ts">export function flushPreFlushCbs(
+  seen?: CountMap,
+  parentJob: SchedulerJob | null = null
+) {
+  if (pendingPreFlushCbs.length) {
+    currentPreFlushParentJob = parentJob;
+    // 将 pendingPreFlushCbs 置空，将其中的 job 队列移动到 activePreFlushCbs 中准备执行
+    activePreFlushCbs = [...new Set(pendingPreFlushCbs)];
+    pendingPreFlushCbs.length = 0;
+    if (__DEV__) {
+      seen = seen || new Map();
+    }
+    for (
+      preFlushIndex = 0;
+      preFlushIndex &lt; activePreFlushCbs.length;
+      preFlushIndex++
+    ) {
+      if (
+        __DEV__ &amp;&amp;
+        checkRecursiveUpdates(seen!, activePreFlushCbs[preFlushIndex])
+      ) {
+        continue;
+      }
+      // for 循环执行 job 队列
+      activePreFlushCbs[preFlushIndex]();
+    }
+    activePreFlushCbs = null;
+    preFlushIndex = 0;
+    currentPreFlushParentJob = null;
+    // recursively flush until it drains
+    flushPreFlushCbs(seen, parentJob);
+  }
+}
+</code></pre>
+<p>将 pendingPreFlushCbs 置空，将其中的 job 队列移动到 activePreFlushCbs 中准备执行，然后 for 循环执行 job 队列</p>
+<pre><code class="language-ts">// job 非常重要 watch 的核心
+const job: SchedulerJob = () =&gt; {
+  if (!effect.active) {
+    return;
+  }
+  if (cb) {
+    // watch(source, cb)
+    // 计算 newValue
+    const newValue = effect.run();
+    if (
+      deep ||
+      forceTrigger ||
+      (isMultiSource
+        ? (newValue as any[]).some((v, i) =&gt;
+            hasChanged(v, (oldValue as any[])[i])
+          )
+        : hasChanged(newValue, oldValue)) ||
+      (__COMPAT__ &amp;&amp;
+        isArray(newValue) &amp;&amp;
+        isCompatEnabled(DeprecationTypes.WATCH_ARRAY, instance))
+    ) {
+      // cleanup before running cb again
+      if (cleanup) {
+        cleanup();
+      }
+      // cb 就是我们传递给 watch 的函数，callWithAsyncErrorHandling 只是为了做统一的 try catch 错误处理
+      // 由此可知 job 函数的执行就是 watch 函数的执行
+      callWithAsyncErrorHandling(cb, instance, ErrorCodes.WATCH_CALLBACK, [
+        newValue,
+        // pass undefined as the old value when it's changed for the first time
+        oldValue === INITIAL_WATCHER_VALUE ? undefined : oldValue,
+        onCleanup,
+      ]);
+      // watch 函数执行结束，将 newValue 赋值给 oldValue
+      oldValue = newValue;
+    }
+  } else {
+    // watchEffect
+    effect.run();
+  }
+};
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="实现-watch"><a class="header" href="#实现-watch">实现 watch</a></h1>
+<h2 id="懒执行-lazy"><a class="header" href="#懒执行-lazy">懒执行 lazy</a></h2>
+<ul>
+<li>
+<p>computed 和 watch 代码中都使用了调度器，调度系统由两部分组成：</p>
+<ul>
+<li>lazy 懒执行</li>
+<li>scheduler 调度器</li>
+</ul>
+</li>
+<li>
+<p>懒执行的实现很简单，就是在 effect 函数中创建 ReactiveEffect 之后，判断是否配置中传递了 lazy，如果没有传递 lazy，那么就立即执行 reactiveEffect.run</p>
+<pre><code class="language-ts">if (!options || !options.lazy) {
+  _effect.run();
+}
+</code></pre>
+</li>
+<li>
+<p>而在 watch 中，默认 lazy 是 true 的，所以要在之前的 effect 中实现 lazy 懒执行</p>
+<pre><code class="language-ts">export interface ReactiveEffectOptions {
+  lazy?: boolean;
+  scheduler?: EffectScheduler;
+}
+
+export function effect&lt;T = any&gt;(
+  fn: () =&gt; T,
+  options?: ReactiveEffectOptions
+) {
+  const _effect = new ReactiveEffect(fn);
+
+  // 懒执行
+  if (!options || !options.lazy) {
+    _effect.run();
+  }
+}
+</code></pre>
+</li>
+<li>
+<p>当 options 传递了 scheduler，就将 reactiveEffect 和 options 合并，使它也包含 scheduler 属性，后续触发依赖的时候，就可以直接执行自定义的 scheduler</p>
+<pre><code class="language-ts">export function effect&lt;T = any&gt;(
+  fn: () =&gt; T,
+  options?: ReactiveEffectOptions
+) {
+  const _effect = new ReactiveEffect(fn);
+
+  if (options) {
+    extend(_effect, options);
+  }
+
+  if (!options || !options.lazy) {
+    _effect.run();
+  }
+}
+</code></pre>
+</li>
+</ul>
+<h2 id="调度器-scheduler"><a class="header" href="#调度器-scheduler">调度器 scheduler</a></h2>
+<pre><code class="language-ts">// 对应 promise 的 pending 状态
+let isFlushPending = false;
+
+/**
+ * promise.resolve()
+ */
+const resolvedPromise = Promise.resolve() as Promise&lt;any&gt;;
+
+/**
+ * 当前的执行任务
+ */
+let currentFlushPromise: Promise&lt;void&gt; | null = null;
+
+/**
+ * 待执行的任务队列
+ */
+const pendingPreFlushCbs: Function[] = [];
+
+/**
+ * 队列预处理函数
+ */
+export function queuePreFlushCb(cb: Function) {
+  queueCb(cb, pendingPreFlushCbs);
+}
+
+/**
+ * 队列处理函数
+ */
+function queueCb(cb: Function, pendingQueue: Function[]) {
+  // 将所有的回调函数，放入队列中
+  pendingQueue.push(cb);
+  queueFlush();
+}
+
+/**
+ * 将队列任务执行放到 promise 微任务中执行
+ */
+function queueFlush() {
+  if (!isFlushPending) {
+    isFlushPending = true;
+    currentFlushPromise = resolvedPromise.then(flushJobs);
+  }
+}
+
+/**
+ * 处理队列
+ */
+function flushJobs() {
+  isFlushPending = false;
+  flushPreFlushCbs();
+}
+
+/**
+ * 依次处理队列中的任务
+ */
+export function flushPreFlushCbs() {
+  if (pendingPreFlushCbs.length) {
+    // 去重
+    let activePreFlushCbs = [...new Set(pendingPreFlushCbs)];
+    // 清空待执行的任务队列
+    pendingPreFlushCbs.length = 0;
+
+    // 循环调用 cb
+    for (let i = 0; i &lt; activePreFlushCbs.length; i++) {
+      activePreFlushCbs[i]();
+    }
+  }
+}
+</code></pre>
+<h2 id="watch-2"><a class="header" href="#watch-2">watch</a></h2>
+<pre><code class="language-ts">import { EMPTY_OBJ, hasChanged, isObject } from '@vue/shared';
+import { ReactiveEffect } from 'packages/reactivity/src/effect';
+import { isReactive } from 'packages/reactivity/src/reactive';
+import { queuePreFlushCb } from './scheduler';
+
+/**
+ * watch 配置项属性
+ */
+export interface WatchOptions&lt;immediate = boolean&gt; {
+  immediate?: immediate;
+  deep?: boolean;
+}
+
+/**
+ * 指定的 watch 函数
+ * @param source 监听的响应性数据
+ * @param cb 回调函数
+ * @param options 配置对象
+ * @returns
+ */
+export function watch(source, cb: Function, options?: WatchOptions) {
+  return doWatch(source, cb, options);
+}
+
+function doWatch(
+  source,
+  cb: Function,
+  { immediate, deep }: WatchOptions = EMPTY_OBJ
+) {
+  // 触发 getter 的指定函数
+  let getter: () =&gt; any;
+
+  // 判断 source 如果是响应式数据，设置 getter 为返回 source 的函数，并且 deep 默认为 true
+  if (isReactive(source)) {
+    getter = () =&gt; source;
+    deep = true;
+  } else {
+    getter = () =&gt; {};
+  }
+
+  // 存在回调函数并且 deep 为 true，就遍历触发响应式数据每一层属性的 getter 来收集依赖
+  if (cb &amp;&amp; deep) {
+    const baseGetter = getter;
+    getter = () =&gt; traverse(baseGetter());
+  }
+
+  // 旧值
+  let oldValue = {};
+
+  // job 函数本质上就是调用传递给 watch 的函数也就是 cb
+  const job = () =&gt; {
+    if (cb) {
+      const newValue = effect.run();
+      if (deep || hasChanged(newValue, oldValue)) {
+        cb(newValue, oldValue);
+        oldValue = newValue;
+      }
+    }
+  };
+
+  // 调度器，将 job 函数放入队列中，并且使用 promise 微任务来执行
+  let scheduler = () =&gt; queuePreFlushCb(job);
+
+  const effect = new ReactiveEffect(getter, scheduler);
+
+  if (cb) {
+    // 如果传递了 immediate 就立即调用一次 cb
+    if (immediate) {
+      job();
+    } else {
+      oldValue = effect.run();
+    }
+  } else {
+    effect.run();
+  }
+
+  return () =&gt; {
+    effect.stop();
+  };
+}
+
+/**
+ * 遍历响应式对象所有属性，从而触发依赖收集
+ */
+export function traverse(value: unknown) {
+  if (!isObject(value)) {
+    return value;
+  }
+
+  for (const key in value as object) {
+    traverse((value as object)[key]);
+  }
+
+  return value;
+}
+</code></pre>
+<h2 id="总结-14"><a class="header" href="#总结-14">总结</a></h2>
+<ul>
+<li>watch 本质上还是通过依赖收集和依赖触发来实现的，类似发布订阅模式。传递给 watch 的 cb 就是副作用 effect，它内部会递归响应式数据的每一层，触发 getter 依赖收集，然后生成 job 函数，job 就是调用 cb，生成 scheduler 调度器，调度器中将 job 放入队列中，并且使用微任务执行，等到响应式数据 setter 触发依赖的时候，就会执行调度器</li>
+<li>使用 scheduler 调度器是为了控制何时触发 watch cb，否则默认的触发依赖是立即执行的，相当于自定义了触发依赖</li>
+<li>使用队列避免重复计算：当多个数据同时发生变化时，如果直接对每个变化都立即执行回调函数，可能会导致大量的重复计算。</li>
+<li>通过使用微任务将 watch cb 的触发在 dom 更新之前，可以合并这些数据的变化，从而减少不必要的 dom 更新</li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="jsx"><a class="header" href="#jsx">jsx</a></h1>
 <h2 id="基础用法"><a class="header" href="#基础用法">基础用法</a></h2>
@@ -22721,7 +23689,7 @@ self["webpackHotUpdatetest_hmr"] = (chunkId, moreModules, runtime) =&gt; {
 	}
 };
 </code></pre>
-<h2 id="总结-13"><a class="header" href="#总结-13">总结</a></h2>
+<h2 id="总结-15"><a class="header" href="#总结-15">总结</a></h2>
 <ul>
 <li>HMR Runtime 通过 HotModuleReplacementPlugin 已经注入到我们 chunk  中了</li>
 <li>除了开启一个 Bundle Server，还开启了 HMR Server，主要用来和 HMR Runtime 中通信</li>

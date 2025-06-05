@@ -166,70 +166,91 @@
 <h2 id="闪烁动画"><a class="header" href="#闪烁动画">闪烁动画</a></h2>
 <p>假设我们现在想要快速的让屏幕上闪烁 红、蓝两种颜色，保证用户可以观察到，如果我们用 setTimeout 来写。</p>
 <pre><code class="language-js">setTimeout(() =&gt; {
-  document.body.style.background = "red"
+  document.body.style.background = 'red';
   setTimeout(() =&gt; {
-    document.body.style.background = "blue"
-  })
-})
+    document.body.style.background = 'blue';
+  });
+});
 </code></pre>
 <p>但是你会发现无法看到红色的背景，一直都会是蓝色的。因为这两个宏任务直接相隔时间太短了，于是浏览器将两次定时器任务合并，之间只会穿插着微任务的执行，而不会穿插页面的渲染。</p>
 <p>如果将内层的定时器的时间改为 17ms，则偶尔可以看到红色闪一下然后变成蓝色。</p>
 <pre><code class="language-js">setTimeout(() =&gt; {
-  document.body.style.background = "red"
+  document.body.style.background = 'red';
   setTimeout(() =&gt; {
-    document.body.style.background = "blue"
-  }, 17)
-})
+    document.body.style.background = 'blue';
+  }, 17);
+});
 </code></pre>
 <p>这是因为 16 ms 的时间到了，浏览器必须和屏幕刷新率保持一致渲染下一帧画面，所以产生了这样的现象。但是也不是必现的，所以依赖 setTimeout 去做动画渲染是不可靠的。</p>
-<pre><code class="language-js">
-let i = 10
+<pre><code class="language-js">let i = 10;
 let req = () =&gt; {
-  i--
+  i--;
   requestAnimationFrame(() =&gt; {
-    document.body.style.background = "red"
+    document.body.style.background = 'red';
     requestAnimationFrame(() =&gt; {
-      document.body.style.background = "blue"
+      document.body.style.background = 'blue';
       if (i &gt; 0) {
-        req()
+        req();
       }
-    })
-  })
-}
- 
-req()
+    });
+  });
+};
+
+req();
 </code></pre>
 <p>使用 requestAnimationFrame 切换 10 次颜色，可以看到红色和蓝色的切换一共 10 次。</p>
 <p>再看一个例子</p>
 <pre><code class="language-js">setTimeout(() =&gt; {
-  console.log("sto")
-  requestAnimationFrame(() =&gt; console.log("rAF"))
-})
+  console.log('sto');
+  requestAnimationFrame(() =&gt; console.log('rAF'));
+});
 setTimeout(() =&gt; {
-  console.log("sto")
-  requestAnimationFrame(() =&gt; console.log("rAF"))
-})
- 
-queueMicrotask(() =&gt; console.log("mic"))
-queueMicrotask(() =&gt; console.log("mic"))
+  console.log('sto');
+  requestAnimationFrame(() =&gt; console.log('rAF'));
+});
+
+queueMicrotask(() =&gt; console.log('mic'));
+queueMicrotask(() =&gt; console.log('mic'));
 </code></pre>
 <p>看起来感觉应该打印如下，因为两次宏任务之间穿插一次渲染：</p>
-<pre><code class="language-js">mic
-mic
-sto
-rAF
-sto
-rAF
+<pre><code class="language-js">mic;
+mic;
+sto;
+rAF;
+sto;
+rAF;
 </code></pre>
 <p>但是实际上打印如下：</p>
-<pre><code class="language-js">mic
-mic
-sto
-sto
-rAF
-rAF
+<pre><code class="language-js">mic;
+mic;
+sto;
+sto;
+rAF;
+rAF;
 </code></pre>
 <p>这个例子更加说明了虽然定时器是宏任务，但是两个执行时机接近的定时器任务会被浏览器合并在一次任务执行，中间不会穿插渲染。</p>
+<h2 id="时间分片优化长列表"><a class="header" href="#时间分片优化长列表">时间分片优化长列表</a></h2>
+<pre><code class="language-js">const total = 100000;
+let container = document.getElementById('container');
+let count = 30;
+let page = Math.ceil(total / 30);
+
+function load(currentTotal) {
+  if (currentTotal &lt;= 0) return;
+  let pageCount = Math.min(currentTotal, count); // 最后一次渲染可能少于30，所以取这两者最小值
+
+  window.requestAnimationFrame(() =&gt; {
+    for (let i = 0; i &lt; pageCount; i++) {
+      let li = document.createElement('li');
+      li.innerHTML = 'something';
+      container.appendChild(li);
+    }
+    load(currentTotal - pageCount);
+  });
+}
+
+load(total);
+</code></pre>
 
                     </main>
 
@@ -239,7 +260,7 @@ rAF
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../browser/history.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../browser/IntersectionObserver.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -253,7 +274,7 @@ rAF
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../browser/history.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../browser/IntersectionObserver.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

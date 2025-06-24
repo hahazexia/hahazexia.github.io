@@ -154,46 +154,55 @@
                     <main>
                         <h1 id="xmlhttprequest"><a class="header" href="#xmlhttprequest">XMLHttpRequest</a></h1>
 <p>自己封装一个 ajax 方法：</p>
-<pre><code class="language-js">function ajax({url, method = 'GET', dataType = 'JSON', headers, data = null}) {
-    return new Promise((resolve, reject) =&gt; {
-        let xhr = new XMLHttpRequest();
-        xhr.open(method, url);
-        xhr.responseType = dataType;
-        
-        Object.keys(headers).forEach(i =&gt; {
-            xhr.setRequestHeader(i, headers[i]);
-        });
-        
-        // xhr.onreadystatechange = () =&gt; {
-        //     if (xhr.readyState === 4 &amp;&amp; xhr.status === 200) {
-        //         resolve(xhr.response)
-        //     }
-        // }
-        xhr.onload = () =&gt; {
-            if (xhr.status === 200) {
-                resolve(xhr.response)
-            } else {
-                resolve({
-                    Code: xhr.status,
-                    Data: xhr.response
-                })
-            }
-        }
-        xhr.onerror = err =&gt; {
-            reject(err);
-        }
-        xhr.send(data);
+<pre><code class="language-js">function ajax({
+  url,
+  method = 'GET',
+  dataType = 'JSON',
+  headers,
+  data = null,
+}) {
+  return new Promise((resolve, reject) =&gt; {
+    let xhr = new XMLHttpRequest();
+    xhr.open(method, url);
+    xhr.responseType = dataType;
+
+    Object.keys(headers).forEach((i) =&gt; {
+      xhr.setRequestHeader(i, headers[i]);
     });
+
+    // xhr.onreadystatechange = () =&gt; {
+    //     if (xhr.readyState === 4 &amp;&amp; xhr.status === 200) {
+    //         resolve(xhr.response)
+    //     }
+    // }
+    xhr.onload = () =&gt; {
+      if (xhr.status === 200) {
+        resolve(xhr.response);
+      } else {
+        resolve({
+          Code: xhr.status,
+          Data: xhr.response,
+        });
+      }
+    };
+    xhr.onerror = (err) =&gt; {
+      reject(err);
+    };
+    xhr.send(data);
+  });
 }
 
 ajax({
-    url:'./test.json', 
-    method: 'get'
-}).then(res =&gt; {
+  url: './test.json',
+  method: 'get',
+}).then(
+  (res) =&gt; {
     console.log(res);
-}, err =&gt; {
-    console.log(err)
-});
+  },
+  (err) =&gt; {
+    console.log(err);
+  }
+);
 </code></pre>
 <h2 id="设置请求头"><a class="header" href="#设置请求头">设置请求头</a></h2>
 <p>xhr.setRequestHeader() 用来设置请求头。此方法必须在 open() 方法和 send() 之间调用。setRequestHeader 可以调用多次，最终的值不会采用覆盖的方式，而是采用追加的方式。</p>
@@ -217,7 +226,7 @@ xhr.open('GET', '/path/to/image.png', true);
 // 将响应数据按照纯文本格式来解析，字符集替换为用户自己定义的字符集
 xhr.overrideMimeType('text/plain; charset=x-user-defined');
 
-xhr.onreadystatechange = function(e) {
+xhr.onreadystatechange = function (e) {
   if (this.readyState == 4 &amp;&amp; this.status == 200) {
     // 通过 responseText 来获取图片文件对应的二进制字符串
     var binStr = this.responseText;
@@ -225,7 +234,7 @@ xhr.onreadystatechange = function(e) {
     for (var i = 0, len = binStr.length; i &lt; len; ++i) {
       var c = binStr.charCodeAt(i);
       // String.fromCharCode(c &amp; 0xff);
-      var byte = c &amp; 0xff; 
+      var byte = c &amp; 0xff;
     }
   }
 };
@@ -238,7 +247,7 @@ xhr.send();
 <tr><td>''</td><td>string 字符串</td><td>默认值</td></tr>
 <tr><td>'text'</td><td>string 字符串</td><td></td></tr>
 <tr><td>'document'</td><td>document 对象</td><td>希望返回 XML 格式数据时使用</td></tr>
-<tr><td>'json'</td><td>js 对象</td><td>存在兼容性问题，IE10/IE11不支持</td></tr>
+<tr><td>'json'</td><td>js 对象</td><td>存在兼容性问题，IE10/IE11 不支持</td></tr>
 <tr><td>'blob'</td><td>Blob 对象</td><td></td></tr>
 <tr><td>'arrayBuffer'</td><td>ArrayBuffer 对象</td><td></td></tr>
 </tbody></table>
@@ -275,7 +284,7 @@ xhr.send();
 <ul>
 <li>默认值为空字符串 ""</li>
 <li>只有当 responseType 为 "text" 或 "" 时，xhr 对象上才有此属性，此时才能调用 xhr.responseText，否则抛错</li>
-<li>只有当请求成功时，才能拿到正确值。以下2种情况下值都为空字符串 ""：请求未完成、请求失败</li>
+<li>只有当请求成功时，才能拿到正确值。以下 2 种情况下值都为空字符串 ""：请求未完成、请求失败</li>
 </ul>
 </li>
 <li>xhr.responseXML
@@ -288,20 +297,20 @@ xhr.send();
 </ul>
 <h2 id="追踪当前请求状态"><a class="header" href="#追踪当前请求状态">追踪当前请求状态</a></h2>
 <p>xhr.readyState 这个属性可以追踪到，每次 xhr.readyState 的值发生变化时，都会触发 xhr.onreadystatechange 事件。</p>
-<pre><code class="language-js">    xhr.onreadystatechange = function () {
-        switch(xhr.readyState){
-            case 0: // UNSENT xhr 对象已创建，尚未调用 open() 方法，0 不会触发 onreadystatechange
-                break;
-            case 1: // OPENED open() 方法已经被调用
-                break;
-            case 2: // HEADERS_RECEIVED send() 方法已经被调用，并且头部和状态已经可获得
-                break;
-            case 3: // LOADING 下载中，responseText 属性已经包含部分数据
-                break;
-            case 4: // DONE 下载操作已完成
-                break;
-        }
-    }
+<pre><code class="language-js">xhr.onreadystatechange = function () {
+  switch (xhr.readyState) {
+    case 0: // UNSENT xhr 对象已创建，尚未调用 open() 方法，0 不会触发 onreadystatechange
+      break;
+    case 1: // OPENED open() 方法已经被调用
+      break;
+    case 2: // HEADERS_RECEIVED send() 方法已经被调用，并且头部和状态已经可获得
+      break;
+    case 3: // LOADING 下载中，responseText 属性已经包含部分数据
+      break;
+    case 4: // DONE 下载操作已完成
+      break;
+  }
+};
 </code></pre>
 <h2 id="超时时间"><a class="header" href="#超时时间">超时时间</a></h2>
 <ul>
@@ -312,17 +321,17 @@ xhr.send();
 <h2 id="获取请求的进度"><a class="header" href="#获取请求的进度">获取请求的进度</a></h2>
 <p>onprogress 事件来实时显示进度，默认情况下这个事件每 50ms 触发一次。需要注意的是，上传过程和下载过程触发的是不同对象的 onprogress 事件：</p>
 <ul>
-<li>上传触发的是xhr.upload对象的 onprogress事件</li>
+<li>上传触发的是 xhr.upload 对象的 onprogress 事件</li>
 <li>下载触发的是 xhr 对象的 onprogress 事件</li>
 </ul>
 <pre><code class="language-js">xhr.onprogress = updateProgress;
 xhr.upload.onprogress = updateProgress;
 
 function updateProgress(event) {
-    if (event.lengthComputable) {
-      var completedPercent = event.loaded / event.total;
-    }
- }
+  if (event.lengthComputable) {
+    var completedPercent = event.loaded / event.total;
+  }
+}
 </code></pre>
 <h2 id="请求的数据"><a class="header" href="#请求的数据">请求的数据</a></h2>
 <p>xhr.send(data) 的参数 data 就是请求发送的数据。</p>
@@ -372,7 +381,7 @@ function updateProgress(event) {
 <h3 id="事件触发顺序"><a class="header" href="#事件触发顺序">事件触发顺序</a></h3>
 <ul>
 <li>
-<p>触发 xhr.onreadystatechange(之后每次readyState变化时，都会触发一次)</p>
+<p>触发 xhr.onreadystatechange(之后每次 readyState 变化时，都会触发一次)</p>
 </li>
 <li>
 <p>触发 xhr.onloadstart</p>
@@ -405,7 +414,7 @@ function updateProgress(event) {
 <p>触发 xhr.onloadend</p>
 </li>
 </ul>
-<h3 id="发生aborttimeouterror异常的处理"><a class="header" href="#发生aborttimeouterror异常的处理">发生abort/timeout/error异常的处理</a></h3>
+<h3 id="发生-aborttimeouterror-异常的处理"><a class="header" href="#发生-aborttimeouterror-异常的处理">发生 abort/timeout/error 异常的处理</a></h3>
 <p>在请求的过程中，有可能发生 abort/timeout/error 这 3 种异常。那么一旦发生这些异常，xhr 后续会进行处理：</p>
 <ul>
 <li>
@@ -423,7 +432,7 @@ function updateProgress(event) {
 </ul>
 </li>
 <li>
-<p>触发 xhr.onprogress事件</p>
+<p>触发 xhr.onprogress 事件</p>
 </li>
 <li>
 <p>触发 xhr.[onabort 或 ontimeout 或 onerror] 事件</p>
@@ -434,6 +443,108 @@ function updateProgress(event) {
 </ul>
 <h2 id="xmlhttprequest-运行原理"><a class="header" href="#xmlhttprequest-运行原理">XMLHttpRequest 运行原理</a></h2>
 <p>代码中实例化 XMLHttpRequest 对象后渲染进程会通过 IPC 通知网络进程去执行具体的 http 请求，然后网络进程将执行结果通过 IPC 通知渲染进程，然后渲染进程再将对应的消息和回调函数加入消息队列。</p>
+<h2 id="文件上传各种写法"><a class="header" href="#文件上传各种写法">文件上传各种写法</a></h2>
+<pre><code class="language-html">&lt;!DOCTYPE html&gt;
+&lt;html lang="en"&gt;
+  &lt;head&gt;
+    &lt;meta charset="UTF-8" /&gt;
+    &lt;meta name="viewport" content="width=device-width, initial-scale=1.0" /&gt;
+    &lt;title&gt;Document&lt;/title&gt;
+  &lt;/head&gt;
+  &lt;body&gt;
+    &lt;input type="file" id="uploadInput" /&gt;
+    &lt;script&gt;
+      const input = document.getElementById('uploadInput');
+      function fileChange() {
+        console.log(input.files);
+      }
+      input.addEventListener('change', fileChange);
+
+      function upload(file, opProgress, onFinish) {
+        const xhr = new XMLHttpRequest();
+        xhr.onload = function () {
+          const resp = JSON.parse(xhr.responseText);
+          console.log(resp);
+          onFinish(resp);
+        };
+
+        xhr.open('POST', 'http://test.com/upload');
+
+        xhr.upload.onprogress = function (e) {
+          const persent = Math.floor((e.loaded / e.total) * 100);
+          console.log(persent);
+          opProgress(persent);
+        };
+        const form = new FormData();
+        form.append('img', file);
+        xhr.send(form);
+
+        return function cancel() {
+          xhr.abort();
+        };
+      }
+
+      function uploadBase64(file, opProgress, onFinish) {
+        const ext = '.' + file.name.split('.').pop();
+        const reader = new FileReader();
+        let xhr;
+        reader.onload = (e) =&gt; {
+          const base64 = e.target.result.split(',').pop();
+
+          xhr = new XMLHttpRequest();
+          xhr.onload = function () {
+            const resp = JSON.parse(xhr.responseText);
+            console.log(resp);
+            onFinish(resp);
+          };
+          xhr.upload.onprogress = function (e) {
+            const persent = Math.floor((e.loaded / e.total) * 100);
+            console.log(persent);
+            opProgress(persent);
+          };
+
+          xhr.open('POST', 'http://test.com/uploadbase64');
+
+          xhr.setRequestHeader('content-type', 'application/json');
+          xhr.send({
+            ext: ext,
+            img: base64,
+          });
+        };
+        reader.readAsDataURL(file);
+
+        return function cancel() {
+          xhr.abort();
+        };
+      }
+
+      function uploadBinary(file, opProgress, onFinish) {
+        const xhr = new XMLHttpRequest();
+        xhr.onload = function () {
+          const resp = JSON.parse(xhr.responseText);
+          console.log(resp);
+          onFinish(resp);
+        };
+
+        xhr.open('POST', 'http://test.com/uploadbinary');
+
+        xhr.upload.onprogress = function (e) {
+          const persent = Math.floor((e.loaded / e.total) * 100);
+          console.log(persent);
+          opProgress(persent);
+        };
+        xhr.setRequestHeader('content-type', 'application/octet-stream');
+        xhr.setRequestHeader('x-ext', '.' + file.name.split('.').pop());
+        xhr.send(file);
+
+        return function cancel() {
+          xhr.abort();
+        };
+      }
+    &lt;/script&gt;
+  &lt;/body&gt;
+&lt;/html&gt;
+</code></pre>
 
                     </main>
 

@@ -153,7 +153,7 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="promise"><a class="header" href="#promise">promise</a></h1>
-<p>Promise对象有以下两个特点。</p>
+<p>Promise 对象有以下两个特点。</p>
 <ol>
 <li>
 <p>对象的状态不受外界影响。Promise 对象代表一个异步操作，有三种状态：pending（进行中）、fulfilled（已成功）和 rejected（已失败）。只有异步操作的结果，可以决定当前是哪一种状态，任何其他操作都无法改变这个状态。这也是 Promise 这个名字的由来，它的英语意思就是“承诺”，表示其他手段无法改变。</p>
@@ -180,27 +180,27 @@ promise.then(function(value) {
 </code></pre>
 <p>resolve 或 reject 之后的的代码会继续执行。</p>
 <pre><code class="language-js">new Promise((resolve, reject) =&gt; {
-  console.log(1)
+  console.log(1);
   resolve(2);
   console.log(3);
-}).then(r =&gt; {
+}).then((r) =&gt; {
   console.log(r);
 });
 
-console.log(4)
+console.log(4);
 
 // 1 3 4 2
 </code></pre>
 <p>加上 return 后面的代码就不会执行了</p>
 <pre><code class="language-js">new Promise((resolve, reject) =&gt; {
-  console.log(1)
+  console.log(1);
   return resolve(2);
   console.log(3);
-}).then(r =&gt; {
+}).then((r) =&gt; {
   console.log(r);
 });
 
-console.log(4)
+console.log(4);
 
 // 1 4 2
 </code></pre>
@@ -208,7 +208,7 @@ console.log(4)
 <li>Promise.prototype.then() 第一个参数是 resolved 状态的回调函数，第二个参数是 rejected 状态的回调函数，它们都是可选的。</li>
 <li>Promise.prototype.catch() 是 .then(null, rejection) 或 .then(undefined, rejection) 的别名，用于指定发生错误时的回调函数。</li>
 <li>一般来说，不要在 then() 方法里面定义 Reject 状态的回调函数（即 then 的第二个参数），总是使用 catch 方法。</li>
-<li>Promise.prototype.finally() finally() 方法用于指定不管 Promise 对象最后状态如何，都会执行的操作。该方法是 ES2018 引入标准的。finally 方法的回调函数不接受任何参数，这表明，finally方法里面的操作，应该是与状态无关的，不依赖于 Promise 的执行结果。</li>
+<li>Promise.prototype.finally() finally() 方法用于指定不管 Promise 对象最后状态如何，都会执行的操作。该方法是 ES2018 引入标准的。finally 方法的回调函数不接受任何参数，这表明，finally 方法里面的操作，应该是与状态无关的，不依赖于 Promise 的执行结果。</li>
 </ul>
 <pre><code class="language-js">promise
 .then(result =&gt; {···})
@@ -252,16 +252,148 @@ Promise.any([rejected, alsoRejected]).catch(function (results) {
 </code></pre>
 <h2 id="题目"><a class="header" href="#题目">题目</a></h2>
 <p>第一题</p>
-<pre><code class="language-js">Promise.resolve(1)
-  .then(2)
-  .then(Promise.resolve(3))
-  .then(console.log)
+<pre><code class="language-js">Promise.resolve(1).then(2).then(Promise.resolve(3)).then(console.log);
 </code></pre>
 <details>
 <summary>答案</summary>
 <p>如果 Promise.prototype.then 的第一个参数不是函数，则会在内部被替换为 (x) =&gt; x，即原样返回 promise 最终结果的函数。因此第一个 then 和 第二个 then 都变成了 (x) =&gt; x，x 是 一开始的 1 被传递下去。最后被 console.log 函数接收打印出来。</p>
 </details>
 <br><br>
+<p>第二题</p>
+<p>手写 promise 实现</p>
+<pre><code class="language-js">const PENDING = 'pending';
+const FULFILLED = 'fulfilled';
+const REJECTED = 'rejected';
+
+class MyPromise {
+  constructor(executor) {
+    this.state = PENDING;
+    this.value = undefined;
+    this.reason = undefined;
+    this.onFulfilledCallbacks = [];
+    this.onRejectedCallbacks = [];
+
+    const resolve = (value) =&gt; {
+      if (this.state === PENDING) {
+        this.state = FULFILLED;
+        this.value = value;
+        this.onFulfilledCallbacks.forEach((callback) =&gt;
+          queueMicrotask(callback)
+        );
+      }
+    };
+
+    const reject = (reason) =&gt; {
+      if (this.state === PENDING) {
+        this.state = REJECTED;
+        this.reason = reason;
+        this.onRejectedCallbacks.forEach((callback) =&gt;
+          queueMicrotask(callback)
+        );
+      }
+    };
+
+    try {
+      executor(resolve, reject);
+    } catch (error) {
+      reject(error);
+    }
+  }
+
+  then(onFulfilled, onRejected) {
+    onFulfilled =
+      typeof onFulfilled === 'function' ? onFulfilled : (value) =&gt; value;
+    onRejected =
+      typeof onRejected === 'function'
+        ? onRejected
+        : (error) =&gt; {
+            throw error;
+          };
+
+    return new MyPromise((resolve, reject) =&gt; {
+      const handleFulfilled = () =&gt; {
+        queueMicrotask(() =&gt; {
+          try {
+            const result = onFulfilled(this.value);
+            resolve(result);
+          } catch (error) {
+            reject(error);
+          }
+        });
+      };
+
+      const handleRejected = () =&gt; {
+        queueMicrotask(() =&gt; {
+          try {
+            const result = onRejected(this.reason);
+            resolve(result);
+          } catch (error) {
+            reject(error);
+          }
+        });
+      };
+
+      if (this.state === FULFILLED) {
+        handleFulfilled();
+      } else if (this.state === REJECTED) {
+        handleRejected();
+      } else if (this.state === PENDING) {
+        this.onFulfilledCallbacks.push(handleFulfilled);
+        this.onRejectedCallbacks.push(handleRejected);
+      }
+    });
+  }
+
+  catch(onRejected) {
+    return this.then(null, onRejected);
+  }
+
+  static resolve(value) {
+    return new MyPromise((resolve) =&gt; resolve(value));
+  }
+
+  static reject(reason) {
+    return new MyPromise((_, reject) =&gt; reject(reason));
+  }
+
+  static all(promises) {
+    return new MyPromise((resolve, reject) =&gt; {
+      if (!Array.isArray(promises)) {
+        return reject(new TypeError('Expected an array'));
+      }
+
+      const results = new Array(promises.length);
+      let completedCount = 0;
+
+      if (promises.length === 0) {
+        return resolve(results);
+      }
+
+      promises.forEach((promise, index) =&gt; {
+        MyPromise.resolve(promise).then(
+          (value) =&gt; {
+            results[index] = value;
+            completedCount++;
+            if (completedCount === promises.length) {
+              resolve(results);
+            }
+          },
+          (error) =&gt; {
+            reject(error);
+          }
+        );
+      });
+    });
+  }
+}
+</code></pre>
+<p>这个版本是最简洁且符合规范的实现，通过 queueMicrotask 实现了 Promise 的微任务异步特性，符合 Promise/A+ 规范：</p>
+<ul>
+<li>保持了状态不可变性</li>
+<li>实现了真正的异步回调</li>
+<li>支持链式调用和错误处理</li>
+</ul>
+
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">

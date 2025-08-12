@@ -26676,6 +26676,63 @@ app.use(async ctx =&gt; {
 
 app.listen(3000);
 </code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="electron-开发踩坑"><a class="header" href="#electron-开发踩坑">electron 开发踩坑</a></h1>
+<h2 id="electron-应用的一些重要路径"><a class="header" href="#electron-应用的一些重要路径">electron 应用的一些重要路径</a></h2>
+<ul>
+<li>默认安装目录 <code>C:\Users\用户名\AppData\Local\Programs\应用名</code></li>
+<li>electron-builder 打包时需要用到的 electron 包会下载到 <code>C:\Users\用户名\AppData\Local\electron\Cache</code></li>
+<li>electron-builder 打包时需要用到的 nsis 和 winCodeSign 在 <code>C:\Users\用户名\AppData\Local\electron-builder\Cache</code></li>
+<li>electron-updater 更新时下载的全量安装包会下载到 <code>C:\Users\用户名\AppData\Local\应用名-updater</code></li>
+<li>默认日志或者缓存目录 （使用 app.getPath('userData')） <code>C:\Users\用户名\AppData\Roaming\应用名</code></li>
+</ul>
+<h2 id="electron-builder-打包下载相关"><a class="header" href="#electron-builder-打包下载相关">electron-builder 打包下载相关</a></h2>
+<ul>
+<li>electron-builder 打包的时候会根据目标平台和软件位宽去下载对应平台和版本的 electron 包，下载后 windows 系统下放在 <code>C:/Users/用户名/AppData/Local/electron/Cache</code> 目录下</li>
+<li>如果一直下载失败，可以去 <a href="https://registry.npmmirror.com/binary.html?path=electron/">registry.npmmirror.electron</a>手动下载对应版本然后放到 <code>C:/Users/用户名/AppData/Local/electron/Cache</code>目录下</li>
+<li>还需要 winCodeSign 签名工具, 在 <a href="https://github.com/electron-userland/electron-builder-binaries/releases/tag/winCodeSign-2.4.0">electron-builder-binaries/winCodeSign-2.4.0</a> 下载后放在 <code>C:\Users\用户名\AppData\Local\electron-builder\Cache\winCodeSign\winCodeSign-2.6.0</code></li>
+<li>还需要 nsis，在 <a href="https://github.com/electron-userland/electron-builder-binaries/releases/tag/nsis-3.0.3.2">electron-builder-binaries/nsis-3.0.3.2</a> 下载，然后放在 <code>C:\Users\用户名\AppData\Local\electron-builder\Cache\nsis\nsis-3.0.4.1</code></li>
+<li>还需要 nsis-resources, 在 <a href="https://github.com/electron-userland/electron-builder-binaries/releases/tag/nsis-resources-3.4.1">electron-builder-binaries/nsis-resources-3.4.1</a> 下载，放在 <code>C:\Users\用户名\AppData\Local\electron-builder\Cache\nsis\nsis-resources-3.4.1</code></li>
+<li>winCodeSign 和 nsis 和 nsis-resources 都可以在 <a href="https://github.com/electron-userland/electron-builder-binaries/releases">electron-builder-binaries/releases</a> 下载到</li>
+</ul>
+<h2 id="原生模块相关"><a class="header" href="#原生模块相关">原生模块相关</a></h2>
+<ul>
+<li>有些 npm 包其实主功能是原生编译的模块，例如 <code>sqlite3</code> 或者 <code>better-sqlite3</code> 是使用 c++ 实现的原生模块，然后使用 <code>node-gyp</code> 编译成目标平台（指定 electron 版本的 nodejs 环境和软件位宽）的 <code>.node</code> 文件。碰到这类原生模块，如果默认下载的包和当前使用的 electron 版本不兼容就会碰到如下错误：
+<pre><code class="language-bash">Error: The module '/path/to/native/module.node'
+was compiled against a different Node.js version using
+NODE_MODULE_VERSION $XYZ. This version of Node.js requires
+NODE_MODULE_VERSION $ABC. Please try re-compiling or re-installing
+the module (for instance, using `npm rebuild` or `npm install`).
+</code></pre>
+</li>
+<li>这时候就需要 <a href="https://www.npmjs.com/package/@electron/rebuild">@electron/rebuild</a> 来重新编译这些原生模块兼容当前 electron 对应的 nodejs 环境。在 <code>package.json</code> 中新建命令 <code>"rebuild": "electron-rebuild -f -w better-sqlite3"</code> 然后运行 <code>npm run rebuild</code> 等待编译完成即可</li>
+</ul>
+<h2 id="闪退问题"><a class="header" href="#闪退问题">闪退问题</a></h2>
+<ul>
+<li>在某些 windows 系统的老旧电脑上碰到 app 启动后，窗口闪了一下就崩溃退出，窗口还没有完全出现，只是出现了透明的框体。查看主进程日志看不出来问题，这时候可以打开 windows 的 cmd，然后输入应用的 exe 文件的绝对路径，然后回车执行，这时候就可以看到崩溃前输出了什么日志</li>
+</ul>
+<p><img src="electron/./img/electron-app-crash.png" alt="electron-app-crash" /></p>
+<ul>
+<li>
+<p>上面的图可以看到 cmd 启动后看到了报错的信息，通过内容可以大概判断是 chromium 的 gpu 进程崩溃导致的，网络上搜查信息后发现可以 cmd 启动时加一些启动参数来尝试修复，例如 <code>--disable-gpu --disable-gpu-compositing --no-sandbox --disable-software-rasterizer</code>。最后发现有这样几个启动参数可以解决这个问题</p>
+<ul>
+<li><code>--no-sandbox</code> 为所有通常处于沙箱模式的进程类型禁用沙箱。此功能仅用作浏览器级别的开关，仅供测试使用 （这里的 “sandbox” 指的是软件沙箱，一种隔离机制，用于限制进程的权限以增强安全性。）</li>
+<li><code>--in-process-gpu</code> 将 GPU 进程作为一个线程运行在浏览器进程中 （这里涉及到软件进程与线程的概念。正常情况下，GPU（图形处理器）相关任务可能会以独立进程的形式运行，而这句话描述的是一种调整机制 —— 让原本独立的 GPU 进程不再单独启动，而是作为浏览器进程内部的一个线程来执行，可能用于特定的调试、性能测试或兼容性场景。）</li>
+<li><code>--disable-gpu-sandbox</code> 禁用 GPU 进程的沙箱 （这里的 “GPU 进程” 指负责处理图形渲染等 GPU 相关任务的进程，“沙箱” 是一种安全隔离机制。该表述通常出现在浏览器或图形处理相关软件的配置说明中，意为关闭对 GPU 进程的沙箱隔离，一般仅用于特定测试场景，正常使用时启用沙箱可增强安全性。）</li>
+</ul>
+</li>
+<li>
+<p>总之可以大概确定由于沙箱的机制导致在这些老旧机器上 gpu 进程崩溃了。除了添加传递给 chromium 的启动参数，还可以在主进程 main.js 最上方写一句 <code>app.commandLine.appendSwitch('--in-process-gpu');</code> 即可在代码层面传递启动参数</p>
+</li>
+</ul>
+<h2 id="参考链接"><a class="header" href="#参考链接">参考链接</a></h2>
+<ul>
+<li><a href="https://www.electronjs.org/zh/docs/latest/tutorial/using-native-node-modules">Node 原生模块</a></li>
+<li><a href="https://zhuanlan.zhihu.com/p/248742896">electron-builder 打包采坑问题汇总</a></li>
+<li><a href="https://peter.sh/experiments/chromium-command-line-switches/">List of Chromium Command Line Switches</a></li>
+<li><a href="https://www.electronjs.org/zh/docs/latest/tutorial/sandbox">进程沙盒化</a></li>
+<li><a href="https://stackoverflow.com/questions/77992943/some-windows-pcs-forces-sandbox-mode-on-electron-chromium">Some Windows PCs forces Sandbox mode on Electron Chromium</a></li>
+<li><a href="https://github.com/electron/electron/issues/18265">Need a way to run with --no-sandbox by default #18265</a></li>
+</ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="electron-全量更新与增量更新"><a class="header" href="#electron-全量更新与增量更新">electron 全量更新与增量更新</a></h1>
 <ul>
 <li>electron 的自动更新功能依赖于 <code>electron-builder</code> 和 <code>electron-updater</code></li>
@@ -26884,7 +26941,7 @@ autoUpdater.quitAndInstall(isSilent, isForceRunAfter); // 退出应用并安装�
 </li>
 <li>如果某个新版本不想走增量更新，直接将服务器上对应的 <code>blockmap</code> 文件删除即可</li>
 </ul>
-<h2 id="参考链接"><a class="header" href="#参考链接">参考链接</a></h2>
+<h2 id="参考链接-1"><a class="header" href="#参考链接-1">参考链接</a></h2>
 <ul>
 <li><a href="https://www.electron.build/auto-update">auto-update</a></li>
 <li><a href="https://github.com/iffy/electron-updater-example">electron-updater-example</a></li>

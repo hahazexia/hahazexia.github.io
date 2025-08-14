@@ -32,21 +32,34 @@
         <!-- Custom theme stylesheets -->
 
 
-        <!-- Provide site root to javascript -->
+        <!-- Provide site root and default themes to javascript -->
         <script>
-            var path_to_root = "";
-            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+            const path_to_root = "";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "searchindex.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc.js"></script>
     </head>
     <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
     <div id="body-container">
         <!-- Work around some values being stored in localStorage wrapped in quotes -->
         <script>
             try {
-                var theme = localStorage.getItem('mdbook-theme');
-                var sidebar = localStorage.getItem('mdbook-sidebar');
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
 
                 if (theme.startsWith('"') && theme.endsWith('"')) {
                     localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
@@ -60,7 +73,8 @@
 
         <!-- Set the theme before any content is loaded, prevents flash -->
         <script>
-            var theme;
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
             try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
             if (theme === null || theme === undefined) { theme = default_theme; }
             const html = document.documentElement;
@@ -73,17 +87,20 @@
 
         <!-- Hide / unhide sidebar before it is displayed -->
         <script>
-            var sidebar = null;
-            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
             if (document.body.clientWidth >= 1080) {
                 try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
                 sidebar = sidebar || 'visible';
             } else {
                 sidebar = 'hidden';
+                sidebar_toggle.checked = false;
             }
-            sidebar_toggle.checked = sidebar === 'visible';
-            html.classList.remove('sidebar-visible');
-            html.classList.add("sidebar-" + sidebar);
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
         </script>
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
@@ -110,13 +127,14 @@
                             <i class="fa fa-paint-brush"></i>
                         </button>
                         <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="default_theme">Auto</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
                         </ul>
-                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                        <button id="search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="searchbar">
                             <i class="fa fa-search"></i>
                         </button>
                     </div>
@@ -133,7 +151,12 @@
 
                 <div id="search-wrapper" class="hidden">
                     <form id="searchbar-outer" class="searchbar-outer">
-                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                        <div class="search-wrapper">
+                            <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <i class="fa fa-spinner fa-spin"></i>
+                            </div>
+                        </div>
                     </form>
                     <div id="searchresults-outer" class="searchresults-outer hidden">
                         <div id="searchresults-header" class="searchresults-header"></div>
@@ -26685,6 +26708,28 @@ app.listen(3000);
 <li>electron-updater 更新时下载的全量安装包会下载到 <code>C:\Users\用户名\AppData\Local\应用名-updater</code></li>
 <li>默认日志或者缓存目录 （使用 app.getPath('userData')） <code>C:\Users\用户名\AppData\Roaming\应用名</code></li>
 </ul>
+<h2 id="关于网速慢装包失败"><a class="header" href="#关于网速慢装包失败">关于网速慢装包失败</a></h2>
+<ul>
+<li>
+<p>有时候网速太慢，下载 electron 会失败，这时候需要切换源。切换最快的源后再装包，成功率就高一些</p>
+<pre><code class="language-bash">  npm i nrm -g
+
+  nrm test
+
+    npm ---------- 1551 ms
+    yarn --------- timeout (Fetch timeout over 5000 ms)
+    tencent ------ 534 ms
+    cnpm --------- 3778 ms
+    taobao ------- 2210 ms
+    npmMirror ---- 4206 ms (Fetch error, if this is your private registry, please ignore)
+  * huawei ------- 480 ms
+
+  // 可以看到 huawei 的源速度最快
+
+  nrm use huawei
+</code></pre>
+</li>
+</ul>
 <h2 id="electron-builder-打包下载相关"><a class="header" href="#electron-builder-打包下载相关">electron-builder 打包下载相关</a></h2>
 <ul>
 <li>electron-builder 打包的时候会根据目标平台和软件位宽去下载对应平台和版本的 electron 包，下载后 windows 系统下放在 <code>C:/Users/用户名/AppData/Local/electron/Cache</code> 目录下</li>
@@ -26696,7 +26741,11 @@ app.listen(3000);
 </ul>
 <h2 id="原生模块相关"><a class="header" href="#原生模块相关">原生模块相关</a></h2>
 <ul>
-<li>有些 npm 包其实主功能是原生编译的模块，例如 <code>sqlite3</code> 或者 <code>better-sqlite3</code> 是使用 c++ 实现的原生模块，然后使用 <code>node-gyp</code> 编译成目标平台（指定 electron 版本的 nodejs 环境和软件位宽）的 <code>.node</code> 文件。碰到这类原生模块，如果默认下载的包和当前使用的 electron 版本不兼容就会碰到如下错误：
+<li>
+<p>如果要使用原生模块的 npm 包，需提前安装环境，根据 <a href="https://www.npmjs.com/package/node-gyp">node-gyp</a> 官方描述，在 windows 下需要安装 python 环境和 C++ 环境，安装<a href="https://devguide.python.org/versions/">当前版本的 python</a>和<a href="https://visualstudio.microsoft.com/zh-hans/thank-you-downloading-visual-studio/?sku=Community">visual studio 社区版</a>，安装 visual studio 时注意勾选 <code>Desktop development with C++ workload</code></p>
+</li>
+<li>
+<p>有些 npm 包其实主功能是原生编译的模块，例如 <code>sqlite3</code> 或者 <code>better-sqlite3</code> 是使用 c++ 实现的原生模块，然后使用 <code>node-gyp</code> 编译成目标平台（指定 electron 版本的 nodejs 环境和软件位宽）的 <code>.node</code> 文件。碰到这类原生模块，如果默认下载的包和当前使用的 electron 版本不兼容就会碰到如下错误：</p>
 <pre><code class="language-bash">Error: The module '/path/to/native/module.node'
 was compiled against a different Node.js version using
 NODE_MODULE_VERSION $XYZ. This version of Node.js requires
@@ -26704,7 +26753,9 @@ NODE_MODULE_VERSION $ABC. Please try re-compiling or re-installing
 the module (for instance, using `npm rebuild` or `npm install`).
 </code></pre>
 </li>
-<li>这时候就需要 <a href="https://www.npmjs.com/package/@electron/rebuild">@electron/rebuild</a> 来重新编译这些原生模块兼容当前 electron 对应的 nodejs 环境。在 <code>package.json</code> 中新建命令 <code>"rebuild": "electron-rebuild -f -w better-sqlite3"</code> 然后运行 <code>npm run rebuild</code> 等待编译完成即可</li>
+<li>
+<p>这时候就需要 <a href="https://www.npmjs.com/package/@electron/rebuild">@electron/rebuild</a> 来重新编译这些原生模块兼容当前 electron 对应的 nodejs 环境。在 <code>package.json</code> 中新建命令 <code>"rebuild": "electron-rebuild -f -w better-sqlite3"</code> 然后运行 <code>npm run rebuild</code> 等待编译完成即可</p>
+</li>
 </ul>
 <h2 id="闪退问题"><a class="header" href="#闪退问题">闪退问题</a></h2>
 <ul>
@@ -26722,6 +26773,9 @@ the module (for instance, using `npm rebuild` or `npm install`).
 </li>
 <li>
 <p>总之可以大概确定由于沙箱的机制导致在这些老旧机器上 gpu 进程崩溃了。除了添加传递给 chromium 的启动参数，还可以在主进程 main.js 最上方写一句 <code>app.commandLine.appendSwitch('--in-process-gpu');</code> 即可在代码层面传递启动参数</p>
+</li>
+<li>
+<p>最后发现其实闪退真正的原因是 electron-builder 打包配置中设置了 <code>requestedExecutionLevel</code> 为 <code>requireAdministrator</code> 造成的，要求管理员权限，如果当前账户不是管理员权限就会闪退，去掉 <code>requestedExecutionLevel</code> 配置即可解决此问题</p>
 </li>
 </ul>
 <h2 id="参考链接"><a class="header" href="#参考链接">参考链接</a></h2>
@@ -28485,6 +28539,7 @@ async function concurrentControlWithRetry(
             window.setTimeout(window.print, 100);
         });
         </script>
+
 
     </div>
     </body>

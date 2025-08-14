@@ -26685,6 +26685,28 @@ app.listen(3000);
 <li>electron-updater 更新时下载的全量安装包会下载到 <code>C:\Users\用户名\AppData\Local\应用名-updater</code></li>
 <li>默认日志或者缓存目录 （使用 app.getPath('userData')） <code>C:\Users\用户名\AppData\Roaming\应用名</code></li>
 </ul>
+<h2 id="关于网速慢装包失败"><a class="header" href="#关于网速慢装包失败">关于网速慢装包失败</a></h2>
+<ul>
+<li>
+<p>有时候网速太慢，下载 electron 会失败，这时候需要切换源。切换最快的源后再装包，成功率就高一些</p>
+<pre><code class="language-bash">  npm i nrm -g
+
+  nrm test
+
+    npm ---------- 1551 ms
+    yarn --------- timeout (Fetch timeout over 5000 ms)
+    tencent ------ 534 ms
+    cnpm --------- 3778 ms
+    taobao ------- 2210 ms
+    npmMirror ---- 4206 ms (Fetch error, if this is your private registry, please ignore)
+  * huawei ------- 480 ms
+
+  // 可以看到 huawei 的源速度最快
+
+  nrm use huawei
+</code></pre>
+</li>
+</ul>
 <h2 id="electron-builder-打包下载相关"><a class="header" href="#electron-builder-打包下载相关">electron-builder 打包下载相关</a></h2>
 <ul>
 <li>electron-builder 打包的时候会根据目标平台和软件位宽去下载对应平台和版本的 electron 包，下载后 windows 系统下放在 <code>C:/Users/用户名/AppData/Local/electron/Cache</code> 目录下</li>
@@ -26696,7 +26718,11 @@ app.listen(3000);
 </ul>
 <h2 id="原生模块相关"><a class="header" href="#原生模块相关">原生模块相关</a></h2>
 <ul>
-<li>有些 npm 包其实主功能是原生编译的模块，例如 <code>sqlite3</code> 或者 <code>better-sqlite3</code> 是使用 c++ 实现的原生模块，然后使用 <code>node-gyp</code> 编译成目标平台（指定 electron 版本的 nodejs 环境和软件位宽）的 <code>.node</code> 文件。碰到这类原生模块，如果默认下载的包和当前使用的 electron 版本不兼容就会碰到如下错误：
+<li>
+<p>如果要使用原生模块的 npm 包，需提前安装环境，根据 <a href="https://www.npmjs.com/package/node-gyp">node-gyp</a> 官方描述，在 windows 下需要安装 python 环境和 C++ 环境，安装<a href="https://devguide.python.org/versions/">当前版本的 python</a>和<a href="https://visualstudio.microsoft.com/zh-hans/thank-you-downloading-visual-studio/?sku=Community">visual studio 社区版</a>，安装 visual studio 时注意勾选 <code>Desktop development with C++ workload</code></p>
+</li>
+<li>
+<p>有些 npm 包其实主功能是原生编译的模块，例如 <code>sqlite3</code> 或者 <code>better-sqlite3</code> 是使用 c++ 实现的原生模块，然后使用 <code>node-gyp</code> 编译成目标平台（指定 electron 版本的 nodejs 环境和软件位宽）的 <code>.node</code> 文件。碰到这类原生模块，如果默认下载的包和当前使用的 electron 版本不兼容就会碰到如下错误：</p>
 <pre><code class="language-bash">Error: The module '/path/to/native/module.node'
 was compiled against a different Node.js version using
 NODE_MODULE_VERSION $XYZ. This version of Node.js requires
@@ -26704,7 +26730,9 @@ NODE_MODULE_VERSION $ABC. Please try re-compiling or re-installing
 the module (for instance, using `npm rebuild` or `npm install`).
 </code></pre>
 </li>
-<li>这时候就需要 <a href="https://www.npmjs.com/package/@electron/rebuild">@electron/rebuild</a> 来重新编译这些原生模块兼容当前 electron 对应的 nodejs 环境。在 <code>package.json</code> 中新建命令 <code>"rebuild": "electron-rebuild -f -w better-sqlite3"</code> 然后运行 <code>npm run rebuild</code> 等待编译完成即可</li>
+<li>
+<p>这时候就需要 <a href="https://www.npmjs.com/package/@electron/rebuild">@electron/rebuild</a> 来重新编译这些原生模块兼容当前 electron 对应的 nodejs 环境。在 <code>package.json</code> 中新建命令 <code>"rebuild": "electron-rebuild -f -w better-sqlite3"</code> 然后运行 <code>npm run rebuild</code> 等待编译完成即可</p>
+</li>
 </ul>
 <h2 id="闪退问题"><a class="header" href="#闪退问题">闪退问题</a></h2>
 <ul>
@@ -26722,6 +26750,9 @@ the module (for instance, using `npm rebuild` or `npm install`).
 </li>
 <li>
 <p>总之可以大概确定由于沙箱的机制导致在这些老旧机器上 gpu 进程崩溃了。除了添加传递给 chromium 的启动参数，还可以在主进程 main.js 最上方写一句 <code>app.commandLine.appendSwitch('--in-process-gpu');</code> 即可在代码层面传递启动参数</p>
+</li>
+<li>
+<p>最后发现其实闪退真正的原因是 electron-builder 打包配置中设置了 <code>requestedExecutionLevel</code> 为 <code>requireAdministrator</code> 造成的，要求管理员权限，如果当前账户不是管理员权限就会闪退，去掉 <code>requestedExecutionLevel</code> 配置即可解决此问题</p>
 </li>
 </ul>
 <h2 id="参考链接"><a class="header" href="#参考链接">参考链接</a></h2>
@@ -26946,6 +26977,417 @@ autoUpdater.quitAndInstall(isSilent, isForceRunAfter); // 退出应用并安装�
 <li><a href="https://www.electron.build/auto-update">auto-update</a></li>
 <li><a href="https://github.com/iffy/electron-updater-example">electron-updater-example</a></li>
 <li><a href="https://github.com/electron-userland/electron-builder/issues/4682">Can I disable differential download? #4682</a></li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="asar-增量更新"><a class="header" href="#asar-增量更新">asar 增量更新</a></h1>
+<p>通过观察发现 <code>electron-builder</code> 和 <code>electron-updater</code> 实现的差分更新，并不能节省多少下载的带宽，这时候就需要实现只更新 <code>asar</code> 包的增量更新，1 包的体积小，更能节省带宽，提升更新的速度，用户体验好。</p>
+<h2 id="两种方案"><a class="header" href="#两种方案">两种方案</a></h2>
+<ul>
+<li>不管是哪种方案，<code>asar</code> 更新的本质都是
+<ol>
+<li>下载新版本的 <code>asar</code> 包</li>
+<li>关闭软件之后用新版本包覆盖旧版本包</li>
+<li>重启软件更新完成</li>
+</ol>
+</li>
+<li>所以两种方案的区别就在于关闭软件之后覆盖文件的方式不同，因为软件正在运行的途中，<code>asar</code> 包处于锁定状态，是无法覆盖的，所以就是为了解决覆盖文件的问题
+<ol>
+<li>第一种是双 <code>asar</code> 包方案，软件会生成两个 <code>asar</code> 包，<code>electron-builder</code> 默认打包生成的 <code>app.asar</code> 作为入口包，软件启动后还是从 <code>app.asar</code> 启动，但是 <code>app.asar</code> 的代码里只存放检测新版本文件和覆盖的逻辑，做完覆盖操作后就使用 <code>require</code> 或者 <code>import</code> 动态导入 <code>main-v1.0.0.asar</code> 这个主 <code>asar</code> 包，所有软件的业务逻辑都在主包中</li>
+<li>第二种逻辑简单一些，检查升级服务器是否存在新版本包，如果存在就下载下来，下载成功后立即退出软件，同时启动一个子进程，与软件主进程脱离关系，主进程退出后执行一个批处理脚本（或者 shell 脚本）覆盖操作，覆盖成功后再重启软件。所有的覆盖逻辑还有重启逻辑都在批处理脚本中</li>
+</ol>
+</li>
+<li>优缺点分析：
+<ul>
+<li>双 <code>asar</code> 方案缺点是会出现两个版本号，因为 <code>asar</code> 包中必须存在 <code>package.json</code> 文件，因此当主包升级后，主包版本号会和入口包版本号不一致，解决办法是实现一个方法，需要读取版本号的时候都要去读取主包内的 <code>package.json</code> 的版本号。双包方案实现起来略微有些复杂</li>
+<li>批处理脚本的优点是，实现起来简单，缺点是有可能批处理脚本的操作会被杀毒软件认为是病毒操作，被误杀</li>
+</ul>
+</li>
+</ul>
+<h2 id="双-asar-方案"><a class="header" href="#双-asar-方案">双 asar 方案</a></h2>
+<pre><code class="language-js">// 主包入口文件 index.js
+const path = require('node:path');
+const { app, dialog } = require('electron');
+const log = require('./logger');
+const fs = require('node:fs');
+const { getMajorPackageInfo, findAsarFilesInResources } = require('./utils.js');
+
+try {
+  // 如果是生产包，就去扫描软件安装目录 resources 目录下是否存在多个 asar 包，如果存在说明新版本已经下载到本地了，判断哪个 asar 包是最新版本，然后进行文件替换操作完成升级
+  // 新版本包下载下来是带 .tmp 后缀的 main-v1.0.0.asar.tmp 以便和旧版本区分
+  if (app.isPackaged) {
+    const asarFiles = findAsarFilesInResources();
+    log.info(asarFiles, 'asarFiles');
+    if (asarFiles.length &gt; 1) {
+      const tmp = asarFiles.filter(i =&gt; i.includes('.tmp'))[0];
+      const old = asarFiles.filter(i =&gt; !i.includes('.tmp'))[0];
+      log.info(`tmp: ${tmp} old: ${old}`);
+      if (tmp &amp;&amp; old) {
+        try {
+          fs.renameSync(tmp, tmp.replace('.tmp', ''));
+          fs.unlinkSync(old);
+          log.info('update main asar successful');
+        } catch (err) {
+          log.error(`fs.renameSync err: ${err}`);
+        }
+      }
+    }
+  }
+
+  let mainAppPath;
+  // 本地 dev 开发环境直接加载 main.js 主逻辑文件
+  if (!app.isPackaged) {
+    mainAppPath = path.join(app.getAppPath(), 'main', 'main.js');
+  } else {
+    // 生产环境动态加载主 asar 包中的 main.js
+    const asarFiles = findAsarFilesInResources();
+    const mainAsar = asarFiles[0];
+    const pkg = getMajorPackageInfo(mainAsar);
+    log.info(pkg, 'pkg');
+    const resourcesPath = path.dirname(app.getAppPath());
+    mainAppPath = path.join(
+      resourcesPath,
+      `${pkg.name}-${pkg.version}.asar`,
+      'main.js'
+    );
+  }
+
+  log.info('Loading main application from:', mainAppPath);
+  // 动态加载
+  const mainModule = require(mainAppPath);
+  mainModule(log);
+} catch (error) {
+  log.error('Failed to load main application:', error);
+
+  dialog.showErrorBox(
+    '应用加载失败',
+    `无法加载主应用模块: ${error.message}\n请尝试重新安装应用`
+  );
+
+  app.quit();
+}
+
+// 获取主包版本号
+exports.getMajorPackageInfo = function getMajorPackageInfo(mainAsarPath) {
+  try {
+    let pkgPath;
+
+    if (!app.isPackaged) {
+      pkgPath = path.join(__dirname, './package.json');
+    } else {
+      pkgPath = path.join(mainAsarPath, 'package.json');
+    }
+
+    const pkgContent = fs.readFileSync(pkgPath, 'utf8');
+    return JSON.parse(pkgContent);
+  } catch (error) {
+    log.error('read package.json failed:', error);
+    return {
+      name: 'unknown-app',
+      version: '0.0.0',
+    };
+  }
+};
+
+// 获取 resources 目录下多个 asar 主包
+exports.findAsarFilesInResources = function findAsarFilesInResources() {
+  try {
+    const resourcesPath = path.dirname(app.getAppPath());
+    log.log('resources dir path:', resourcesPath);
+
+    const files = fs.readdirSync(resourcesPath, { withFileTypes: true });
+
+    const asarFiles = files
+      .filter(
+        item =&gt;
+          !item.isDirectory() &amp;&amp;
+          item.name.includes('asar') &amp;&amp;
+          item.name !== 'app.asar'
+      )
+      .map(item =&gt; path.join(resourcesPath, item.name));
+
+    log.log(`find ${asarFiles.length} files includes asar:`);
+    asarFiles.forEach(file =&gt; log.log(`- ${file}`));
+
+    return asarFiles;
+  } catch (error) {
+    log.error('get asar files list failed:', error.message);
+    return [];
+  }
+};
+</code></pre>
+<p>下面是主包逻辑 main.js，导出一个函数，函数中就是所有主逻辑</p>
+<pre><code class="language-js">module.exports = async function () {};
+</code></pre>
+<p>然后是 <code>electron-builder</code> 打包配置，在 <code>package.json</code> 中设置 <code>extraResources</code> 复制主进程文件到 <code>${name}-${version}.asarfolder</code> 目录下，并且设置 <code>afterPack</code> 脚本去处理 pack 之后的第二个 asar 包的生成</p>
+<pre><code class="language-js">{
+      "extraResources": [
+      {
+        "from": "main",
+        "to": "${name}-${version}.asarfolder",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "afterPack": "./afterPack.js"
+}
+</code></pre>
+<p>下面是 <code>afterPack.js</code>，解压 <code>app.asar</code> 从中获取到 <code>node_modules</code> 和 <code>package.json</code> 复制到 <code>${name}-${version}.asarfolder</code> 下，然后再将 <code>${name}-${version}.asarfolder</code> 打成 <code>${pkg.name}-${pkg.version}.asar</code> 文件，即第二个 asar 包</p>
+<pre><code class="language-js">const localPgk = require('local-pkg');
+const asar = require('@electron/asar');
+const path = require('path');
+const fs = require('fs-extra');
+
+module.exports = async context =&gt; {
+  async function moveToDirectory(source, targetDir) {
+    try {
+      if (!(await fs.pathExists(source))) {
+        throw new Error(`moveToDirectory source doesn't exist: ${source}`);
+      }
+
+      const sourceName = path.basename(source);
+      const targetPath = path.join(targetDir, sourceName);
+
+      // ensure targetDir exists,if doesn't then creat
+      await fs.ensureDir(targetDir);
+
+      // check targetDir exists same source, if exists remove
+      if (await fs.pathExists(targetPath)) {
+        await fs.remove(targetPath);
+        console.log(
+          `  • moveToDirectory already remove same source in targetDir: ${targetPath}`
+        );
+      }
+
+      await fs.move(source, targetPath);
+      console.log(`  • moveToDirectory move successful: ${targetPath}`);
+    } catch (error) {
+      console.error('  • moveToDirectory move failed:', error.message);
+      throw error;
+    }
+  }
+
+  async function extractAsarFile(from, dest) {
+    try {
+      await fs.ensureDir(dest);
+
+      console.log(`  • start extract asar: ${from}`);
+      console.log(`  • extract to dest: ${dest}`);
+
+      await asar.extractAll(from, dest);
+
+      console.log('  • asar extract complete');
+      return true;
+    } catch (error) {
+      console.error('  • asar extract error:', error);
+      throw error;
+    }
+  }
+
+  const pkg = localPgk.loadPackageJSONSync();
+
+  const from = path.join(__dirname, './dist/win-unpacked/resources/app.asar');
+  const dest = path.join(__dirname, './dist/win-unpacked/resources/temp');
+  const target = path.join(
+    __dirname,
+    `./dist/win-unpacked/resources/${pkg.name}-${pkg.version}.asarfolder/`
+  );
+
+  try {
+    // extract app.asar to temp folder
+    await extractAsarFile(from, dest);
+    console.log('  • extract app.asar complete');
+
+    const nodeModulesPath = path.join(
+      __dirname,
+      './dist/win-unpacked/resources/temp/node_modules'
+    );
+    const pkgPath = path.join(
+      __dirname,
+      './dist/win-unpacked/resources/temp/package.json'
+    );
+
+    // copy mode_modules and package.json to main asar folder
+    await moveToDirectory(nodeModulesPath, target);
+    await moveToDirectory(pkgPath, target);
+
+    // remove temp
+    await fs.remove(dest);
+    console.log('  • remove temp file complete');
+
+    const asarFolder = path.join(
+      __dirname,
+      `./dist/win-unpacked/resources/${pkg.name}-${pkg.version}.asarfolder`
+    );
+    const asarDest = path.join(
+      __dirname,
+      `./dist/win-unpacked/resources/${pkg.name}-${pkg.version}.asar`
+    );
+
+    // pack asar folder
+    await asar.createPackage(asarFolder, asarDest);
+
+    console.log('  • asar pack complete');
+
+    // remove original asar folder
+    await fs.remove(asarFolder);
+
+    console.log('  • remove asar temp folder complete');
+  } catch (err) {
+    throw err;
+  }
+};
+</code></pre>
+<p>最后是检查是否需要增量更新的方法，请求服务器最新的版本号和 resources 目录下的 asar 主包中 package.json 中的版本号对比判断是否需要更新</p>
+<pre><code class="language-js">exports.asarUpdateCheck = async function asarUpdateCheck(sendStatusToWindow) {
+  const log = global.log;
+  const res = await axios.get('http://127.0.0.1:33855/update.json');
+  log.info(res.data, 'update.json res');
+
+  const latest = res.data[0];
+  log.info(latest, 'latest');
+
+  const asarFiles = findAsarFilesInResources();
+  let currentVersion;
+  if (asarFiles.length === 1) {
+    const pkg = getMajorPackageInfo(asarFiles[0]);
+    currentVersion = pkg.version;
+  } else if (asarFiles.length &gt; 1) {
+    const versionArr = asarFiles.map(i =&gt; getMajorPackageInfo(i).version);
+    versionArr.sort((a, b) =&gt; compareVersion(a, b));
+    currentVersion = versionArr[versionArr.length - 1];
+  } else {
+    app.quit();
+  }
+  log.info(
+    `currentVersion: ${currentVersion} latest.version: ${latest.version}`
+  );
+
+  const compareRes = compareVersion(latest.version, currentVersion);
+  if (compareRes === 1) {
+    sendStatusToWindow('New Version found.');
+    if (latest.type === 'full') {
+      return 'full';
+    } else {
+      // check if there is on full between latest and current, then will be full update not asar
+      const currentIndex = res.data.findIndex(
+        i =&gt; i.version === currentVersion
+      );
+      log.info('currentIndex', currentIndex);
+      const filterData = res.data.slice(1, currentIndex);
+      log.info('filterData', filterData);
+      log.info(
+        `filterData.some((i) =&gt; i.type === 'full')`,
+        filterData.some(i =&gt; i.type === 'full')
+      );
+      if (filterData.some(i =&gt; i.type === 'full')) {
+        return 'full';
+      }
+      log.info(`start download asar update ${latest.name}`);
+      const targetDir = app.isPackaged
+        ? path.join(path.dirname(app.getAppPath()))
+        : path.join(app.getAppPath());
+      await downloadAsarFile(
+        `http://127.0.0.1:33855/${latest.name}`,
+        targetDir,
+        () =&gt; {},
+        true,
+        sendStatusToWindow
+      );
+    }
+    return 'asar';
+  } else {
+    sendStatusToWindow('update not available.');
+    return false;
+  }
+};
+</code></pre>
+<h2 id="批处理方案"><a class="header" href="#批处理方案">批处理方案</a></h2>
+<p>批处理方案的逻辑就简单得多了，首先检查更新和下载 asar 增量包得逻辑和双包方案是一样的，在确定需要增量更新后，调用 <code>exitAndRunBatch</code> 方法退出应用并升级</p>
+<pre><code class="language-js">export function exitAndRunBatch(newAsarPath: string) {
+  const log = global.log;
+  try {
+    const exePath = process.execPath;
+    const resourcesPath = path.dirname(app.getAppPath());
+    const appAsarPath = path.join(resourcesPath, 'app.asar');
+    const batPath = path.join(resourcesPath, 'update.bat');
+
+    log.info(
+      `resourcesPath: ${resourcesPath}, newAsarPath: ${newAsarPath}, appAsarPath: ${appAsarPath}, exePath: ${exePath}`
+    );
+
+    const batContent =
+      '@echo off\r\n' +
+      'chcp 936 &gt;nul 2&gt;&amp;1\r\n' +
+      '\r\n' +
+      ':: wait 3 seconds ensure main process exit\r\n' +
+      'timeout /t 3 /nobreak &gt;nul\r\n' +
+      '\r\n' +
+      ':: loop wait asar file unlock\r\n' +
+      'if exist "' +
+      appAsarPath +
+      '" (\r\n' +
+      '    :WAIT_DELETE\r\n' +
+      '    del "' +
+      appAsarPath +
+      '" &gt;nul 2&gt;&amp;1\r\n' +
+      '    if %errorlevel% equ 0 (\r\n' +
+      '        goto DELETE_SUCCESS\r\n' +
+      '    ) else (\r\n' +
+      '        timeout /t 1 /nobreak &gt;nul\r\n' +
+      '        goto WAIT_DELETE\r\n' +
+      '    )\r\n' +
+      ')\r\n' +
+      ':DELETE_SUCCESS\r\n' +
+      '\r\n' +
+      ':: move new file\r\n' +
+      'move "' +
+      newAsarPath +
+      '" "' +
+      appAsarPath +
+      '"\r\n' +
+      '\r\n' +
+      ':: relaunch app\r\n' +
+      'start "" "' +
+      exePath +
+      '"\r\n' +
+      '\r\n' +
+      ':: delete bat script self\r\n' +
+      'del "%~f0" &gt;nul 2&gt;&amp;1\r\n';
+
+    const buffer = iconv.encode(batContent, 'gbk');
+    fs.writeFileSync(batPath, buffer);
+
+    const out = fs.openSync(path.join(resourcesPath, './out.log'), 'a');
+    const err = fs.openSync(path.join(resourcesPath, './out.log'), 'a');
+
+    const child = spawn(batPath, [], {
+      cwd: resourcesPath,
+      detached: true,
+      shell: true,
+      stdio: ['ignore', out, err],
+      windowsHide: true,
+    });
+    child.on('spawn', () =&gt; {
+      log.info('child process start successful');
+      app.quit();
+    });
+    child.on('error', err =&gt; {
+      logErrorInfo('child process on error', err);
+    });
+    child.unref();
+
+    return true;
+  } catch (err) {
+    logErrorInfo('bat script run failed error: ', err);
+    return false;
+  }
+}
+</code></pre>
+<p>这里需要注意的是，在 windows 下，文本的换行符是 <code>\r\n</code> 所以需要拼接换行符字符串，否则子进程执行批处理脚本会失败，然后 windows 下字符编码多是 'gbk' 编码，需要转换成 <code>gbk</code> 编码，否则一旦路径中出现中文字符，脚本也会失败，最后通过子进程的 <code>spawn</code> 的参数 <code>detached</code> 设置为 <code>true</code>，使得子进程与父进程分离开独立运行（父进程退出不会导致子进程也退出），<code>shell</code>设置为 <code>true</code>，因为在 <code>shell</code> 中运行脚本才能支持很多丰富的语法，<code>windowsHide</code> 隐藏子进程打开的命令行窗口，stdio 设置子进程的输入，输出，和错误信息组成的数组，忽略掉输入，将子进程的输出和错误信息写入本地硬盘文件，方便调试。最后调用 <code>child.unref()</code>，通常父进程会等待子进程退出，调用 <code>child.unref()</code> 后父进程不再等待子进程，会提前退出</p>
+<h2 id="参考链接-2"><a class="header" href="#参考链接-2">参考链接</a></h2>
+<ul>
+<li><a href="https://nodejs.org/docs/latest/api/child_process.html#child_processspawncommand-args-options">child_process.spawn(command[, args][, options])</a></li>
+<li><a href="https://nodejs.org/docs/latest/api/child_process.html#subprocessunref">subprocess.unref()</a></li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="eslint代码规范"><a class="header" href="#eslint代码规范">ESLint代码规范</a></h1>
 <h2 id="基础使用-1"><a class="header" href="#基础使用-1">基础使用</a></h2>

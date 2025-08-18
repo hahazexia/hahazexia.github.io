@@ -26755,6 +26755,10 @@ the module (for instance, using `npm rebuild` or `npm install`).
 <p>最后发现其实闪退真正的原因是 electron-builder 打包配置中设置了 <code>requestedExecutionLevel</code> 为 <code>requireAdministrator</code> 造成的，要求管理员权限，如果当前账户不是管理员权限就会闪退，去掉 <code>requestedExecutionLevel</code> 配置即可解决此问题</p>
 </li>
 </ul>
+<h2 id="打包报错"><a class="header" href="#打包报错">打包报错</a></h2>
+<ul>
+<li>打包过程中莫名其妙的报错，并且没有任何错误信息提示，那么极有可能是因为使用了 <code>electron-builder</code> 的钩子函数，例如 <code>afterPack</code> <code>afterAllArtifactBuild</code> <code>beforePack</code> 等等指定的 js 文件报错了，所以去 <code>package.json</code> 文件中将这些钩子函数先删掉然后重新打包再看看</li>
+</ul>
 <h2 id="参考链接"><a class="header" href="#参考链接">参考链接</a></h2>
 <ul>
 <li><a href="https://www.electronjs.org/zh/docs/latest/tutorial/using-native-node-modules">Node 原生模块</a></li>
@@ -27388,6 +27392,360 @@ module.exports = async context =&gt; {
 <ul>
 <li><a href="https://nodejs.org/docs/latest/api/child_process.html#child_processspawncommand-args-options">child_process.spawn(command[, args][, options])</a></li>
 <li><a href="https://nodejs.org/docs/latest/api/child_process.html#subprocessunref">subprocess.unref()</a></li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="开发框架搭建"><a class="header" href="#开发框架搭建">开发框架搭建</a></h1>
+<ul>
+<li>
+<p>现在来搭建一个本地开发框架，要分两种情况</p>
+<ul>
+<li>第一种，主进程使用 esm 模块和 typescript，package.json 设置 <code>"type": "module"</code>，运行或者打包的时候还是将主进程代码编译成 esm 模块</li>
+<li>第二章，主进程依然使用 esm 模块，但是 package.json 设置 <code>"type": "commonjs"</code>，运行打包时编译成 commonjs 模块</li>
+</ul>
+</li>
+<li>
+<p>这样分开的原因：</p>
+<ul>
+<li><a href="https://github.com/electron/electron/releases/tag/v28.0.0">electron v28.0.0</a> 版本开始才全面支持 esm 模块，也就是之前的版本主进程代码都使用 commonjs 模块，而最后一个支持 windows7 系统的版本是 <code>electron v22</code>，如果还需要开发支持 win7 的应用，那就只能用 commonjs 模块来写主进程代码了。</li>
+</ul>
+<pre><code>  Electron will be ending support for Windows 7/8/8.1 after version 22.x.y following Chromium's plan to end support. Older versions of Electron will continue to work, but no further updates will be made for these operating systems.
+</code></pre>
+<ul>
+<li>虽然官方说 v22 是最后一个支持 win7 的版本，但是看到有人测试发帖说 v22 在 win7 运行会报错，所以兼容 win7 需要使用 v21.4.4 版本，v21 的最后一个版本</li>
+</ul>
+<p><img src="electron/./img/electron_dev.png" alt="electron_dev" /></p>
+</li>
+</ul>
+<h2 id="esm-模块"><a class="header" href="#esm-模块">esm 模块</a></h2>
+<ul>
+<li>设置 ts 配置，这个设置作为编译主进程代码时的配置，而 preload.js 建议还使用 commonjs 所有创建第二个 ts 配置用于编译 preload.js</li>
+</ul>
+<pre><code class="language-js">// tsconfig.json 或取名 tsconfig.es.json 编译主进程代码
+{
+  "compilerOptions": {
+    "target": "esnext",
+    "module": "esnext",
+    "moduleResolution": "node",
+    "strict": true,
+    "sourceMap": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "lib": ["ESNext", "DOM"],
+    "outDir": "dist",
+    "rootDir": "src/main",
+    "typeRoots": [
+      "./node_modules/@types",
+      "./node_modules/**/*.d.ts",
+      "./src/main/types"
+    ],
+    "types": ["node", "electron"],
+    "skipLibCheck": true,
+    "allowUmdGlobalAccess": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+  },
+  "include": ["./src/main/**/*", "./src/main/types/global.d.ts"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/main/renderer/*",
+    "src/main/preload.ts"
+  ]
+}
+
+// tsconfig.cjs.json 编译 preload.js
+
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "outDir": "./dist",
+    "module": "CommonJS",
+    "target": "ES6",
+    "moduleResolution": "Node",
+    "rootDir": "./src/main",
+    "esModuleInterop": true,
+    "skipLibCheck": true
+  },
+  "include": ["./src/main/preload.ts"],
+  "exclude": ["node_modules", "dist"]
+}
+
+</code></pre>
+<ul>
+<li>然后再处理渲染进程页面的问题，demo 中简单使用原生 html，只需要将页面相关文件复制到最终 dist 目录即可完成编译，最后我们的 npm scripts</li>
+</ul>
+<pre><code class="language-js">{
+    "scripts": {
+    "dev:ts": "tsc -p tsconfig.json", // 编译主进程 js
+    "dev:cjs": "tsc -p tsconfig.cjs.json", // 编译 preload.js
+    "dev:copy": "copyfiles -u 2 ./src/renderer/* ./dist", // 复制渲染进程页面到 dist
+    "dev:watch": "nodemon --watch ./src --ext ts,js,html,css --exec \"npm run dev\"", // 监测代码变化重新编译启动
+    "dev": "npm run clean &amp;&amp; npm run dev:cjs &amp;&amp; npm run dev:ts &amp;&amp;  npm run dev:copy &amp;&amp; electron .", // 启动本地dev环境
+    "clean": "rimraf ./dist",
+  },
+}
+
+</code></pre>
+<ul>
+<li>这样编译出来的所有文件都在 dist 目录下，所以主进程寻找 <code>preload.js</code> 和 <code>html</code> 文件的时候就很方便，都基于当前模块的路径就能找到</li>
+</ul>
+<pre><code class="language-js">const win = new BrowserWindow({
+  width: 800,
+  height: 600,
+  webPreferences: {
+    preload: path.join(__dirname, 'preload.js'),
+  },
+});
+global.win = win;
+
+const html = path.join(__dirname, 'index.html');
+</code></pre>
+<ul>
+<li>如果渲染进程页面使用了其他前端框架，例如 vue react svelte 等，dev 环境就不需要复制 html 相关文件到 dist 目录了，只需要主进程窗口加载页面时区分 dev 和 prod 就行了</li>
+</ul>
+<pre><code class="language-js">const win = new BrowserWindow({
+  show: false,
+  frame: false,
+  webPreferences: {
+    webSecurity: false,
+    nodeIntegration: true,
+    preload: path.join(__dirname, 'preload.js'),
+  },
+});
+
+if (app.isPackaged) {
+  // 判断打包后的环境，加载编译目录的文件，app.getAppPath() 获取当前应用程序的目录，获取到的目录就是 `你的安装目录/resources/app.asar`
+  const filePath = path.join(app.getAppPath(), 'maindist/index.html');
+  win
+    .loadFile(filePath)
+    .then(() =&gt; {
+      log.info('win.lodaFile successful');
+    })
+    .catch(err =&gt; {
+      logErrorInfo('win.lodaFile failed', err);
+    });
+} else {
+  // dev开发环境直接加载前端框架(vue react svelte)的本地 dev 服务器提供的页面
+  win.loadURL('http://localhost:5173/login');
+}
+</code></pre>
+<h2 id="commonjs-模块兼容-win7"><a class="header" href="#commonjs-模块兼容-win7">commonjs 模块兼容 win7</a></h2>
+<h2 id="参考链接-3"><a class="header" href="#参考链接-3">参考链接</a></h2>
+<ul>
+<li><a href="https://www.electronjs.org/docs/latest/tutorial/esm">ES Modules (ESM) in Electron</a></li>
+<li><a href="https://github.com/electron/electron/pull/37535">feat: I guess it's esm #37535</a></li>
+<li><a href="https://github.com/electron/electron/releases/tag/v28.0.0">electron v28.0.0</a></li>
+<li><a href="https://github.com/electron/electron/releases/tag/v22.0.0">electron v22.0.0</a></li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="打包流程"><a class="header" href="#打包流程">打包流程</a></h1>
+<ul>
+<li>对应开发环境的搭建，打包的流程也一样，先编译主进程文件，然后再编译页面文件，将这两部分都输出到同一个 dist 目录，然后再启动 <code>electron-builder</code> 打包</li>
+</ul>
+<pre><code class="language-js">{
+    "scripts": {
+    "clean": "rimraf ./dist",
+    "build:es": "vite build --config vite.es.config.js", // 编译主进程
+    "build:cjs": "vite build --config vite.cjs.config.js", // 编译 preload.js
+    "build:vite": "npm run clean &amp;&amp; npm run build:es &amp;&amp; npm run build:cjs",
+    "build:electron": "electron-builder build", // electron-builder 打包
+    "build": "npm run build:vite &amp;&amp; electron-builder build",
+  },
+}
+// demo 这里没有使用前端框架作为渲染进程页面的开发，如果使用了前端框架，那就在 build 命令中 electron-builder 打包之前再加上一条编译前端页面的命令即可
+</code></pre>
+<p><img src="electron/./img/electron_build.png" alt="electron_build" /></p>
+<ul>
+<li>下面是 vite.es.config.js 编译主进程的 vite 配置</li>
+</ul>
+<pre><code class="language-js">import { defineConfig, normalizePath } from 'vite';
+import path from 'path';
+import { nodeResolve } from '@rollup/plugin-node-resolve';
+import commonjs from '@rollup/plugin-commonjs';
+import { viteStaticCopy } from 'vite-plugin-static-copy';
+
+// 主进程中用到的 node 原生模块
+const nodeBuiltins = [
+  'node:http',
+  'node:https',
+  'node:fs',
+  'node:fs/promises',
+  'node:path',
+  'node:url',
+  'node:child_process',
+  'module',
+];
+
+export default defineConfig({
+  root: path.resolve(__dirname, 'src/main'), // 项目根目录，主进程 js 所在目录
+  plugins: [
+    // 使用插件将渲染进程 html 相关文件复制到 dist 目录中
+    viteStaticCopy({
+      targets: [
+        {
+          src: normalizePath(path.resolve(__dirname, 'src/renderer/*')),
+          dest: './',
+        },
+      ],
+    }),
+  ],
+  build: {
+    outDir: path.resolve(__dirname, 'dist'), // 输出路径
+    emptyOutDir: false, // vite 编译前是否先清空输出目录下所有文件，这里选择 false 以防和复制 html 文件的行为互相冲突
+    target: 'node22', // 最终编译结果兼容什么环境
+    lib: {
+      // 以库的形式构建
+      entry: ['index.ts'], // 入口 js 文件
+      formats: ['es'], // 使用 esm 模块
+      fileName: (format, entryName) =&gt; {
+        // 输出的最终文件名
+        return `${entryName}.js`;
+      },
+    },
+    rollupOptions: {
+      external: [
+        // 排除在 bundle 外部的模块，这些模块是原生模块或者不想被打包到最终js文件中的模块
+        ...nodeBuiltins,
+        'electron',
+        'electron-log',
+        'dotenv',
+        'electron-updater',
+        'iconv-lite',
+        'better-sqlite3',
+      ],
+      plugins: [
+        /**
+         * @rollup/plugin-node-resolve 插件的主要职责是帮助 Rollup 解析和处理 Node.js 风格的模块导入语句。在 Node.js 环境中，模块可以通过相对路径、绝对路径、npm 包名（如 import something from 'my-package'）等多种方式进行导入。然而，Rollup 默认仅支持 ES 模块导入（即通过相对或绝对路径导入本地文件）。使用 @rollup/plugin-node-resolve 插件后，Rollup 能够识别并正确处理 Node.js 的模块导入机制，包括解析 node_modules 目录下的依赖包以及处理 package.json 中的 main、module、browser 等字段。
+         */
+        nodeResolve({
+          preferBuiltins: true, // 优先解析为 node 原生模块
+          browser: false, // 不使用浏览器模块的解决方案
+        }),
+        // @rollup/plugin-commonjs 用于将 node_modules 中的 commonjs 包转换成 esm 模块，这样就能够被打包到最终 js 文件中
+        commonjs({
+          include: /node_modules/, // 告诉插件处理 node_modules 中的模块
+          esmExternals: true, // 假设所有模块都是 esm 模块
+        }),
+      ],
+      output: {
+        entryFileNames: 'index.js', // 入口文件
+        format: 'es', // 打包成 esm 模块
+        externalLiveBindings: true, // 为外部依赖生成动态绑定的代码
+        globals: {
+          // 为外部依赖指定全局变量名
+          electron: 'electron',
+        },
+        sourcemap: true, // 开启 sourcemap
+        sourcemapExcludeSources: true, // 如果为 true 实际源代码将不会被添加到 sourcemap 文件中
+      },
+    },
+  },
+});
+</code></pre>
+<ul>
+<li>下面是 vite.cjs.config.js 编译 preload.js</li>
+</ul>
+<pre><code class="language-js">import { defineConfig, normalizePath } from 'vite';
+import path from 'path';
+import { nodeResolve } from '@rollup/plugin-node-resolve';
+
+export default defineConfig({
+  root: path.resolve(__dirname, 'src/main'), // 项目根目录，preload.js 所在目录
+  build: {
+    outDir: path.resolve(__dirname, 'dist'), // 输出路径
+    emptyOutDir: false, // vite 编译前是否先清空输出目录下所有文件
+    target: 'node22', // 最终编译结果兼容什么环境
+    lib: {
+      entry: ['preload.ts'], // 入口文件
+      formats: ['cjs'], // 输出为 commonjs 模块
+      fileName: (format, entryName) =&gt; {
+        // 输出文件名
+        return `${entryName}.js`;
+      },
+    },
+    rollupOptions: {
+      external: ['electron'], // 排除在 bundle 外部的模块
+      plugins: [
+        // 解析 nodejs 风格的模块导入
+        nodeResolve({
+          preferBuiltins: true,
+          browser: false,
+        }),
+      ],
+      output: {
+        entryFileNames: 'preload.js', // 入口文件
+        format: 'cjs', // 输出为 commonjs 模块
+      },
+    },
+  },
+});
+</code></pre>
+<p>下面是关键，<code>package.json</code> 中的 <code>electron-builder</code> 配置</p>
+<pre><code class="language-js">{
+  "build": {
+    "appId": "update.test", // 应用id
+    "productName": "hahazexia", // 产品名
+    "directories": {
+      "output": "out" // 打包输出目录
+    },
+    "publish": [ // 为自动更新设置下载服务器地址
+      {
+        "provider": "generic", // 自定义服务
+        "url": "http://127.0.0.1:33855/" // 升级接口地址
+      }
+    ],
+    "win": { // 打包目标平台和安装包格式
+      "target": "nsis"
+    },
+    "nsis": { // nsis 配置
+      "oneClick": false, // 是否生成一键安装包
+      "perMachine": true, // 是否为每个用户安装应用（显示安装模式页面）
+      "warningsAsErrors": false, // nsis 允许 warning 存在
+      "createDesktopShortcut": "always", // 创建桌面图标
+      "allowToChangeInstallationDirectory": true, // 允许用户修改安装路径
+      "artifactName": "${productName}_v${version}.exe", // 安装包文件名
+      "license": "./mxy_SoftwareLicence.txt", // 安装包协议页显示内容
+      "installerIcon": "./icon.ico", // 安装包图标
+      "uninstallerIcon": "./icon.ico", // 卸载图标
+    },
+    "electronDownload": { // 打包过程中下载 electron 的镜像地址
+      "mirror": "https://registry.npmmirror.com/binary.html?path=electron/"
+    },
+    "files": [ // 打包的文件列表
+      "**/*",
+      ".env",
+      "package.json",
+      "!nsis_publish/**/*",
+      "!out/**/*",
+      "!public",
+      "!src",
+      "!.gitignore",
+      "!afterAllArtifactBuild.cjs",
+      "!afterPack.cjs",
+      "!beforePack.cjs",
+      "!*.ico",
+      "!installer.nsi",
+      "!License.txt",
+      "!out.log",
+      "!package-lock.json",
+      "!README.md",
+      "!Readme.txt",
+      "!server.js",
+      "!sha512.js",
+      "!tsconfig.*.json",
+      "!tsconfig.json",
+      "!update.json",
+      "!vite.*.config.ts",
+      "!*.exe"
+    ],
+    "afterPack": "./afterPack.cjs" // 钩子函数文件
+  }
+}
+</code></pre>
+<h2 id="参考链接-4"><a class="header" href="#参考链接-4">参考链接</a></h2>
+<ul>
+<li><a href="https://cn.vitejs.dev/config/build-options.html">vite config build</a></li>
+<li><a href="https://cn.rollupjs.org/configuration-options/#external">rollup config external</a></li>
+<li><a href="https://www.cnblogs.com/longmo666/p/18107406">import resolve from '@rollup/plugin-node-resolve' 这个包的作用是什么</a></li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="eslint代码规范"><a class="header" href="#eslint代码规范">ESLint代码规范</a></h1>
 <h2 id="基础使用-1"><a class="header" href="#基础使用-1">基础使用</a></h2>

@@ -231,6 +231,10 @@ the module (for instance, using `npm rebuild` or `npm install`).
 <p>最后发现其实闪退真正的原因是 electron-builder 打包配置中设置了 <code>requestedExecutionLevel</code> 为 <code>requireAdministrator</code> 造成的，要求管理员权限，如果当前账户不是管理员权限就会闪退，去掉 <code>requestedExecutionLevel</code> 配置即可解决此问题</p>
 </li>
 </ul>
+<h2 id="打包报错"><a class="header" href="#打包报错">打包报错</a></h2>
+<ul>
+<li>打包过程中莫名其妙的报错，并且没有任何错误信息提示，那么极有可能是因为使用了 <code>electron-builder</code> 的钩子函数，例如 <code>afterPack</code> <code>afterAllArtifactBuild</code> <code>beforePack</code> 等等指定的 js 文件报错了，所以去 <code>package.json</code> 文件中将这些钩子函数先删掉然后重新打包再看看</li>
+</ul>
 <h2 id="参考链接"><a class="header" href="#参考链接">参考链接</a></h2>
 <ul>
 <li><a href="https://www.electronjs.org/zh/docs/latest/tutorial/using-native-node-modules">Node 原生模块</a></li>

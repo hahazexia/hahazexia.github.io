@@ -26770,13 +26770,17 @@ the module (for instance, using `npm rebuild` or `npm install`).
 </ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="electron-全量更新与增量更新"><a class="header" href="#electron-全量更新与增量更新">electron 全量更新与增量更新</a></h1>
 <ul>
-<li>electron 的自动更新功能依赖于 <code>electron-builder</code> 和 <code>electron-updater</code></li>
-<li><code>electron-builder</code> 打包以后会生成 3 个文件
+<li>
+<p>electron 的自动更新功能依赖于 <code>electron-builder</code> 和 <code>electron-updater</code></p>
+</li>
+<li>
+<p><code>electron-builder</code> 打包以后会生成 3 个文件</p>
 <ul>
 <li><code>latest.yml</code> 包含最新版本包的信息的配置文件，其中有 文件版本号，文件地址，文件哈希值，打包时间</li>
 <li><code>electron-update Setup 1.0.0.exe</code> 安装包 exe 文件</li>
 <li><code>electron-update Setup 1.0.1.exe.blockmap</code> blockmap 文件，它记录了应用程序文件的区块索引和哈希值，帮助 electron-updater 精准识别新旧版本间的差异</li>
 </ul>
+<p><img src="electron/./img/electron_updater.png" alt="electron_updater" /></p>
 </li>
 </ul>
 <h2 id="如何实现"><a class="header" href="#如何实现">如何实现</a></h2>
@@ -26851,22 +26855,22 @@ autoUpdater.on('checking-for-update', () =&gt; {
 });
 
 // 有新版本可用
-autoUpdater.on('update-available', (info) =&gt; {
+autoUpdater.on('update-available', info =&gt; {
   sendStatusToWindow('Update available.');
 });
 
 // 无可用更新
-autoUpdater.on('update-not-available', (info) =&gt; {
+autoUpdater.on('update-not-available', info =&gt; {
   sendStatusToWindow('Update not available.');
 });
 
 // 报错
-autoUpdater.on('error', (err) =&gt; {
+autoUpdater.on('error', err =&gt; {
   sendStatusToWindow('Error in auto-updater. ' + err);
 });
 
 // 下载进度
-autoUpdater.on('download-progress', (progressObj) =&gt; {
+autoUpdater.on('download-progress', progressObj =&gt; {
   let log_message = 'Download speed: ' + progressObj.bytesPerSecond;
   log_message = log_message + ' - Downloaded ' + progressObj.percent + '%';
   log_message =
@@ -26880,7 +26884,7 @@ autoUpdater.on('download-progress', (progressObj) =&gt; {
 });
 
 // 更新包下载完成
-autoUpdater.on('update-downloaded', (info) =&gt; {
+autoUpdater.on('update-downloaded', info =&gt; {
   sendStatusToWindow('Update downloaded');
   setTimeout(() =&gt; {
     autoUpdater.quitAndInstall(true, true);
@@ -26986,20 +26990,23 @@ autoUpdater.quitAndInstall(isSilent, isForceRunAfter); // 退出应用并安装�
 <p>通过观察发现 <code>electron-builder</code> 和 <code>electron-updater</code> 实现的差分更新，并不能节省多少下载的带宽，这时候就需要实现只更新 <code>asar</code> 包的增量更新，1 包的体积小，更能节省带宽，提升更新的速度，用户体验好。</p>
 <h2 id="两种方案"><a class="header" href="#两种方案">两种方案</a></h2>
 <ul>
-<li>不管是哪种方案，<code>asar</code> 更新的本质都是
+<li>
+<p>不管是哪种方案，<code>asar</code> 更新的本质都是</p>
 <ol>
 <li>下载新版本的 <code>asar</code> 包</li>
 <li>关闭软件之后用新版本包覆盖旧版本包</li>
 <li>重启软件更新完成</li>
 </ol>
 </li>
-<li>所以两种方案的区别就在于关闭软件之后覆盖文件的方式不同，因为软件正在运行的途中，<code>asar</code> 包处于锁定状态，是无法覆盖的，所以就是为了解决覆盖文件的问题
+<li>
+<p>所以两种方案的区别就在于关闭软件之后覆盖文件的方式不同，因为软件正在运行的途中，<code>asar</code> 包处于锁定状态，是无法覆盖的，所以就是为了解决覆盖文件的问题</p>
 <ol>
 <li>第一种是双 <code>asar</code> 包方案，软件会生成两个 <code>asar</code> 包，<code>electron-builder</code> 默认打包生成的 <code>app.asar</code> 作为入口包，软件启动后还是从 <code>app.asar</code> 启动，但是 <code>app.asar</code> 的代码里只存放检测新版本文件和覆盖的逻辑，做完覆盖操作后就使用 <code>require</code> 或者 <code>import</code> 动态导入 <code>main-v1.0.0.asar</code> 这个主 <code>asar</code> 包，所有软件的业务逻辑都在主包中</li>
 <li>第二种逻辑简单一些，检查升级服务器是否存在新版本包，如果存在就下载下来，下载成功后立即退出软件，同时启动一个子进程，与软件主进程脱离关系，主进程退出后执行一个批处理脚本（或者 shell 脚本）覆盖操作，覆盖成功后再重启软件。所有的覆盖逻辑还有重启逻辑都在批处理脚本中</li>
 </ol>
 </li>
-<li>优缺点分析：
+<li>
+<p>优缺点分析：</p>
 <ul>
 <li>双 <code>asar</code> 方案缺点是会出现两个版本号，因为 <code>asar</code> 包中必须存在 <code>package.json</code> 文件，因此当主包升级后，主包版本号会和入口包版本号不一致，解决办法是实现一个方法，需要读取版本号的时候都要去读取主包内的 <code>package.json</code> 的版本号。双包方案实现起来略微有些复杂</li>
 <li>批处理脚本的优点是，实现起来简单，缺点是有可能批处理脚本的操作会被杀毒软件认为是病毒操作，被误杀</li>
@@ -27007,6 +27014,7 @@ autoUpdater.quitAndInstall(isSilent, isForceRunAfter); // 退出应用并安装�
 </li>
 </ul>
 <h2 id="双-asar-方案"><a class="header" href="#双-asar-方案">双 asar 方案</a></h2>
+<p><img src="electron/./img/double_asar_update.png" alt="double_asar_update" /></p>
 <pre><code class="language-js">// 主包入口文件 index.js
 const path = require('node:path');
 const { app, dialog } = require('electron');
@@ -27306,6 +27314,7 @@ module.exports = async context =&gt; {
 };
 </code></pre>
 <h2 id="批处理方案"><a class="header" href="#批处理方案">批处理方案</a></h2>
+<p><img src="electron/./img/batch_update.png" alt="batch_update" /></p>
 <p>批处理方案的逻辑就简单得多了，首先检查更新和下载 asar 增量包得逻辑和双包方案是一样的，在确定需要增量更新后，调用 <code>exitAndRunBatch</code> 方法退出应用并升级</p>
 <pre><code class="language-js">export function exitAndRunBatch(newAsarPath: string) {
   const log = global.log;

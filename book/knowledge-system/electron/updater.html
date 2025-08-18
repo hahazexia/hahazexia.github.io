@@ -154,13 +154,17 @@
                     <main>
                         <h1 id="electron-全量更新与增量更新"><a class="header" href="#electron-全量更新与增量更新">electron 全量更新与增量更新</a></h1>
 <ul>
-<li>electron 的自动更新功能依赖于 <code>electron-builder</code> 和 <code>electron-updater</code></li>
-<li><code>electron-builder</code> 打包以后会生成 3 个文件
+<li>
+<p>electron 的自动更新功能依赖于 <code>electron-builder</code> 和 <code>electron-updater</code></p>
+</li>
+<li>
+<p><code>electron-builder</code> 打包以后会生成 3 个文件</p>
 <ul>
 <li><code>latest.yml</code> 包含最新版本包的信息的配置文件，其中有 文件版本号，文件地址，文件哈希值，打包时间</li>
 <li><code>electron-update Setup 1.0.0.exe</code> 安装包 exe 文件</li>
 <li><code>electron-update Setup 1.0.1.exe.blockmap</code> blockmap 文件，它记录了应用程序文件的区块索引和哈希值，帮助 electron-updater 精准识别新旧版本间的差异</li>
 </ul>
+<p><img src="./img/electron_updater.png" alt="electron_updater" /></p>
 </li>
 </ul>
 <h2 id="如何实现"><a class="header" href="#如何实现">如何实现</a></h2>
@@ -235,22 +239,22 @@ autoUpdater.on('checking-for-update', () =&gt; {
 });
 
 // 有新版本可用
-autoUpdater.on('update-available', (info) =&gt; {
+autoUpdater.on('update-available', info =&gt; {
   sendStatusToWindow('Update available.');
 });
 
 // 无可用更新
-autoUpdater.on('update-not-available', (info) =&gt; {
+autoUpdater.on('update-not-available', info =&gt; {
   sendStatusToWindow('Update not available.');
 });
 
 // 报错
-autoUpdater.on('error', (err) =&gt; {
+autoUpdater.on('error', err =&gt; {
   sendStatusToWindow('Error in auto-updater. ' + err);
 });
 
 // 下载进度
-autoUpdater.on('download-progress', (progressObj) =&gt; {
+autoUpdater.on('download-progress', progressObj =&gt; {
   let log_message = 'Download speed: ' + progressObj.bytesPerSecond;
   log_message = log_message + ' - Downloaded ' + progressObj.percent + '%';
   log_message =
@@ -264,7 +268,7 @@ autoUpdater.on('download-progress', (progressObj) =&gt; {
 });
 
 // 更新包下载完成
-autoUpdater.on('update-downloaded', (info) =&gt; {
+autoUpdater.on('update-downloaded', info =&gt; {
   sendStatusToWindow('Update downloaded');
   setTimeout(() =&gt; {
     autoUpdater.quitAndInstall(true, true);

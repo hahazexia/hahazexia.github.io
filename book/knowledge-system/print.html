@@ -32,34 +32,21 @@
         <!-- Custom theme stylesheets -->
 
 
-        <!-- Provide site root and default themes to javascript -->
+        <!-- Provide site root to javascript -->
         <script>
-            const path_to_root = "";
-            const default_light_theme = "light";
-            const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex.js";
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc.js"></script>
     </head>
     <body>
-    <div id="mdbook-help-container">
-        <div id="mdbook-help-popup">
-            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
-            <div>
-                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
-                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
-                <p>Press <kbd>?</kbd> to show this help</p>
-                <p>Press <kbd>Esc</kbd> to hide this help</p>
-            </div>
-        </div>
-    </div>
     <div id="body-container">
         <!-- Work around some values being stored in localStorage wrapped in quotes -->
         <script>
             try {
-                let theme = localStorage.getItem('mdbook-theme');
-                let sidebar = localStorage.getItem('mdbook-sidebar');
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
 
                 if (theme.startsWith('"') && theme.endsWith('"')) {
                     localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
@@ -73,8 +60,7 @@
 
         <!-- Set the theme before any content is loaded, prevents flash -->
         <script>
-            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
-            let theme;
+            var theme;
             try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
             if (theme === null || theme === undefined) { theme = default_theme; }
             const html = document.documentElement;
@@ -87,20 +73,17 @@
 
         <!-- Hide / unhide sidebar before it is displayed -->
         <script>
-            let sidebar = null;
-            const sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            var sidebar = null;
+            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
             if (document.body.clientWidth >= 1080) {
                 try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
                 sidebar = sidebar || 'visible';
             } else {
                 sidebar = 'hidden';
-                sidebar_toggle.checked = false;
             }
-            if (sidebar === 'visible') {
-                sidebar_toggle.checked = true;
-            } else {
-                html.classList.remove('sidebar-visible');
-            }
+            sidebar_toggle.checked = sidebar === 'visible';
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
         </script>
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
@@ -127,14 +110,13 @@
                             <i class="fa fa-paint-brush"></i>
                         </button>
                         <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
-                            <li role="none"><button role="menuitem" class="theme" id="default_theme">Auto</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
                         </ul>
-                        <button id="search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="searchbar">
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
                             <i class="fa fa-search"></i>
                         </button>
                     </div>
@@ -151,12 +133,7 @@
 
                 <div id="search-wrapper" class="hidden">
                     <form id="searchbar-outer" class="searchbar-outer">
-                        <div class="search-wrapper">
-                            <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
-                            <div class="spinner-wrapper">
-                                <i class="fa fa-spinner fa-spin"></i>
-                            </div>
-                        </div>
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
                     </form>
                     <div id="searchresults-outer" class="searchresults-outer hidden">
                         <div id="searchresults-header" class="searchresults-header"></div>
@@ -28032,6 +28009,587 @@ export default defineConfig({
 <ul>
 <li><a href="https://www.electron.build/configuration#files">electron-builder configuration files</a></li>
 </ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="集成自定义-nsis-打包"><a class="header" href="#集成自定义-nsis-打包">集成自定义 nsis 打包</a></h1>
+<ul>
+<li>
+<p><code>electron-builder</code> 自带的 nsis 最后的安装包界面比较普通简陋，并且不能自定义所有界面的样式，因此大多数情况下可能需要自己编写 nsis 脚本制作安装包，或者使用第三方的 nsis 插件来制作安装包，这时候就需要调整升级的逻辑，因为 <code>electron-builder</code> 只为自带的 nsis 提供升级文件的生成，如果要自己打包 nsis，那么需要自己写脚本生成对应的 <code>latest.yml</code> 升级文件</p>
+</li>
+<li>
+<p>这里使用的是 <code>nsNiuniuSkin</code> 这个第三方制作 nsis 的插件</p>
+</li>
+</ul>
+<h2 id="集成-nsniuniuskin"><a class="header" href="#集成-nsniuniuskin">集成 nsNiuniuSkin</a></h2>
+<ul>
+<li>首先去 <a href="http://www.leeqia.com/nsniuniuskin/download/">nsNiuniuSkin</a> 官网下载插件，下载后解压到项目根目录下</li>
+</ul>
+<pre><code class="language-json">nsis_publish
+└─FilesToInstall // 放需要打包的文件
+  ├─locales
+  ├─resources
+  │ ├─app.asar.unpacked
+  │ ├─app-update.yml
+  │ ├─app.asar
+  ├─chrome_100_percent.pak
+  ├─chrome_200_percent.pak
+  ├─d3dcompiler_47.dll
+  ├─electron-update.exe
+  ├─ffmpeg.dll
+  ├─icudtl.dat
+  ├─libEGL.dll
+  ├─libGLESv2.dll
+  ├─LICENSE.electron.txt
+  ├─LICENSES.chromium.html
+  ├─resources.pak
+  ├─snapshot_blob.bin
+  ├─v8_context_snapshot.bin
+  ├─vk_swiftshader_icd.json
+  ├─vk_swiftshader.dll
+  ├─vulkan-1.dll
+└─NSIS // NSIS完整软件
+└─Output // 输出目录，打包好的安装包会放到这里
+  ├─electron-update_V0.0.18.exe
+└─SetupScripts
+  ├─nim
+  │ ├─skin
+  │ ├─icon.ico
+  │ ├─licence.rtf
+  │ ├─license.txt // 协议文件
+  │ ├─nim_setup.nsi // nsis 脚本入口
+  │ ├─skin.zip
+  │ ├─ui_nim_setup.nsh // nsis 脚本
+  │ ├─uninst.ico
+  ├─app.7z
+  ├─app.nsh
+  ├─commonfunc.nsh // nsis 脚本通用函数
+└─7z.dll
+└─7z.exe
+└─安装包报毒解决方法.txt
+└─打包配置及流程说明.doc
+└─build-nim-nozip.bat
+└─build-nim.bat
+└─Description_of_NiuniuSetupSkin.doc
+└─getCodeStructure.cjs
+└─makeapp.bat
+└─makensiscode.bat
+└─makeskinzip.bat
+└─NSIS.chm
+</code></pre>
+<ul>
+<li>修改 <code>nsis_publish/SetupScripts/nim/nim_setup.nsi</code> 入口文件的基本信息</li>
+</ul>
+<pre><code class="language-bash"># ====================== 自定义宏 产品信息==============================
+!define PRODUCT_NAME           		"electron-update"  # 软件名
+!define PRODUCT_PATHNAME 			"electron-update"  #安装卸载项用到的KEY
+!define INSTALL_APPEND_PATH         "electron-update"	  #安装路径追加的名称
+!define INSTALL_DEFALT_SETUPPATH    ""       #默认生成的安装路径
+!define EXE_NAME               		"electron-update.exe" # 可执行文件名字
+!define PRODUCT_VERSION        		"0.0.18.0" # nsis 版本号，这里后续会使用 VIProductVersion 来设置安装程序的 VS_FIXEDFILEINFO 版本信息块中的版本号，必须4位
+!define PRODUCT_SHOW_VERSION        "0.0.18" # 对外显示的版本号
+!define PRODUCT_PUBLISHER      		"hahazexia" # 软件发布者
+!define PRODUCT_LEGAL          		"hahazexia 2025" # 版权信息
+!define INSTALL_OUTPUT_NAME    		"${PRODUCT_NAME}_V${PRODUCT_SHOW_VERSION}.exe" # 安装包文件最终的名字
+
+# ====================== 自定义宏 安装信息==============================
+!define INSTALL_7Z_PATH 	   		"..\app.7z"
+!define INSTALL_7Z_NAME 	   		"app.7z"
+!define INSTALL_RES_PATH       		"skin.zip"
+!define INSTALL_LICENCE_FILENAME    "license.txt"
+!define INSTALL_ICO 				"icon.ico"
+!define UNINSTALL_ICO 				"uninst.ico"
+
+; Compression algorithm configuration (must be placed at the very beginning of the script)
+; Use LZMA algorithm with solid compression (highest compression ratio)
+; SetCompressor /SOLID lzma # 可以开启 lzma 压缩
+
+; Set compression dictionary size (optional, range 4-64, unit: MB)
+; Larger values provide better compression but increase compression time, 16 or 32 recommended
+; SetCompressorDictSize 4 # 设置压缩字典大小
+
+!include "ui_nim_setup.nsh" # 引入主脚本
+
+# ==================== NSIS属性 ================================
+
+# 针对Vista和win7 的UAC进行权限请求.
+# RequestExecutionLevel none|user|highest|admin
+RequestExecutionLevel admin
+
+
+; 安装包名字.
+Name "${PRODUCT_NAME}"
+
+# 安装程序文件名.
+
+OutFile "..\..\Output\${INSTALL_OUTPUT_NAME}"
+
+;$PROGRAMFILES32\Netease\NIM\
+
+InstallDir "1"
+
+# 安装和卸载程序图标
+Icon              "${INSTALL_ICO}"
+UninstallIcon     "${UNINSTALL_ICO}"
+
+</code></pre>
+<ul>
+<li>修改 <code>nsis_publish/SetupScripts/nim/ui_nim_setup.nsh</code> 文件中的静默安装入口函数，放在 silentInstallSec 中的方法会在自动升级的时候提供静默安装的能力</li>
+</ul>
+<pre><code class="language-bash"># 添加一个静默安装的入口
+Section "silentInstallSec" SEC01
+    #MessageBox MB_OK|MB_ICONINFORMATION "Test silent install. you can add your silent install code here."
+	; FileOpen $0 "$DESKTOP\silent_install.log" w
+    ; FileWrite $0 "enter silent install section 1 \r\n"
+    ; FileClose $0
+
+    Pop $0
+
+	Call GenerateSetupAddress
+
+    GetFunctionAddress $0 ExtractFunc
+    BgWorker::CallAndWait
+
+	SetShellVarContext all
+	CreateShortCut "$DESKTOP\${PRODUCT_NAME}.lnk" "$INSTDIR\${EXE_NAME}"
+	SetShellVarContext current
+
+	Call CreateAppShortcut
+
+	Call CreateUninstall
+
+	StrCpy $InstallState "1"
+
+	Call OnFinished
+SectionEnd
+</code></pre>
+<ul>
+<li>然后可以去 <code>nsis_publish/SetupScripts/nim/skin</code> 目录下修改 xml 文件和图片文件，xml 文件就对应了安装包中的页面</li>
+</ul>
+<div class="table-wrapper"><table><thead><tr><th>xml 文件</th><th>说明</th></tr></thead><tbody>
+<tr><td>install.xml</td><td>安装程序的入口</td></tr>
+<tr><td>configpage.xml</td><td>打开安装包后显示的第一个界面，也是选择安装路径的界面</td></tr>
+<tr><td>licensepage.xml</td><td>许可协议显示界面</td></tr>
+<tr><td>installingpage.xml</td><td>安装过程界面</td></tr>
+<tr><td>finishpage.xml</td><td>安装完成界面</td></tr>
+<tr><td>uninstallpage.xml</td><td>卸载入口界面</td></tr>
+<tr><td>uninstallingpage.xml</td><td>卸载过程界面</td></tr>
+<tr><td>uninstallfinishpage.xml</td><td>卸载完成界面</td></tr>
+<tr><td>msgBox.xml</td><td>二级弹窗</td></tr>
+</tbody></table>
+</div>
+<ul>
+<li>
+<p><code>nsis_publish/SetupScripts/nim/logo.ico</code> 是安装器图标，<code>nsis_publish/SetupScripts/nim/uninst.ico</code> 是卸载器图标</p>
+</li>
+<li>
+<p><code>nsis_publish/SetupScripts/nim/ui_nim_setup.nsh</code> 中是主要逻辑</p>
+</li>
+</ul>
+<h2 id="参考链接-6"><a class="header" href="#参考链接-6">参考链接</a></h2>
+<ul>
+<li><a href="https://github.com/leeqia/nsNiuniuSkin">nsNiuniuSkin github</a></li>
+<li><a href="http://ggniu.cn/articles/nsniuniuskin.html">分享一个使用 NSIS 制作安装包的 UI 插件</a></li>
+<li><a href="http://www.leeqia.com/nsniuniuskin/download/">nsNiuniuSkin download</a></li>
+<li><a href="https://blog.csdn.net/qq_43915356/article/details/130813351">nsNiuniuSkin 使用教程</a></li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="搭建-ts-开发环境"><a class="header" href="#搭建-ts-开发环境">搭建 ts 开发环境</a></h1>
+<ul>
+<li>首先在 node 环境中搭建开发环境 （node 环境方便演示）</li>
+</ul>
+<pre><code class="language-bash">npm i -g typescript
+</code></pre>
+<ul>
+<li>
+<p>默认情况下， ts 会做出下面几种假设：</p>
+<ul>
+<li>假设当前执行环境是 dom</li>
+<li>如果代码中没有使用模块化语句（import export），便认为该代码是全局执行的</li>
+<li>编译目标代码是 es3 版本（保持最大兼容性）</li>
+</ul>
+</li>
+<li>
+<p>有两种方式更改以上假设：</p>
+<ul>
+<li>使用 tsc 命令行时加上选项参数</li>
+<li>使用 ts 配置文件更改编译选项</li>
+</ul>
+</li>
+</ul>
+<h2 id="ts-配置文件"><a class="header" href="#ts-配置文件">ts 配置文件</a></h2>
+<pre><code class="language-bash">tsc --init
+</code></pre>
+<ul>
+<li>使用了配置文件后，使用 tsc 编译时，不能后写文件名（比如 tsc index.ts），这样会忽略配置文件</li>
+<li>node 环境需要安装 <code>@types/node</code>。@types 是 ts 官方的类型库，包含很多 js 代码的类型描述</li>
+</ul>
+<h2 id="使用第三方库简化流程"><a class="header" href="#使用第三方库简化流程">使用第三方库简化流程</a></h2>
+<ul>
+<li>ts-node 将 ts 代码在内存中编译并运行</li>
+<li>nodemon 监测文件变化</li>
+</ul>
+<pre><code class="language-bash">nodemon --exec ts-node src/index.ts
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="基础"><a class="header" href="#基础">基础</a></h1>
+<h2 id="如何进行类型约束"><a class="header" href="#如何进行类型约束">如何进行类型约束</a></h2>
+<ul>
+<li>可以约束变量，函数参数，函数返回值</li>
+</ul>
+<pre><code class="language-ts">let name: string;
+name = 'haha';
+
+function sum(a: number, b: number): number {
+  return a + b;
+}
+</code></pre>
+<ul>
+<li>ts 可以在很多场景完成类型推导</li>
+</ul>
+<pre><code class="language-ts">// ts 会自动推导出 sum 的返回值是 number 类型
+function sum(a: number, b: number) {
+  return a + b;
+}
+</code></pre>
+<ul>
+<li>any 表示任意类型，ts 对该类型不做检查</li>
+</ul>
+<h2 id="源代码和编译结果的差异"><a class="header" href="#源代码和编译结果的差异">源代码和编译结果的差异</a></h2>
+<p>编译结果中没有类型约束信息</p>
+<h2 id="基本类型"><a class="header" href="#基本类型">基本类型</a></h2>
+<ul>
+<li>number</li>
+<li>string</li>
+<li>boolean</li>
+<li>数组</li>
+<li>对象</li>
+<li>null undefined 是其他所有类型的子类型，可以赋值给其他类型</li>
+</ul>
+<pre><code class="language-ts">let num: number;
+let name: string;
+let isOdd: boolean;
+let nums: number[];
+let nums: Array&lt;number&gt;;
+let obj: object;
+
+let n: string = null;
+let n: string = undefined;
+</code></pre>
+<p><code>undefined</code> 可以赋值给其他类型造成的问题可以在配置文件中加上 <code>strictNullChecks</code> 来避免</p>
+<pre><code class="language-json">{
+  // Visit https://aka.ms/tsconfig to read more about this file
+  "compilerOptions": {
+    // 编译选项
+    "target": "es2024", // 配置编译目标代码的版本
+    "module": "commonjs", // 配置编译目标使用的模块化标准
+    "lib": ["ES2024"], // 编译过程中需要引入的库文件
+    "outDir": "./dist", // 编译结果目录
+    "strictNullChecks": true // 更加严格的空值检测
+  },
+  "include": ["./src"] // 编译哪些目录下的 ts 文件
+}
+</code></pre>
+<h2 id="其他常用类型"><a class="header" href="#其他常用类型">其他常用类型</a></h2>
+<ul>
+<li>联合类型 多种类型任选其一。配合类型保护进行判断，类型判断：当对某个变量进行类型判断后，在判断的语句块中便可以确定它的确切类型</li>
+<li>void 类型 通常用于约束函数的返回值，表示函数没有任何返回值</li>
+<li>never 类型 通常用于约束函数的返回值，表示函数永远不可能结束</li>
+<li>字面量类型 使用一个值进行约束</li>
+<li>元组类型 Tuple 一个固定长度数组，并且数组中每一项类型确定</li>
+<li>any 类型 可以绕过类型检查，any 类型数据可以赋值给任意类型</li>
+</ul>
+<pre><code class="language-ts">let name: string | undefined = undefined;
+function some(): void {}
+function throwError(msg: string): never {
+  // 永远不会结束的函数
+  throw new Error(msg);
+}
+function alwaysDoSomething(): never {
+  // 永远不会结束的函数
+  while (true) {}
+}
+let a: 'A';
+let gender: '男' | '女';
+let arr: [string, number]; // 元组类型，固定长度数组
+let n: any = 1;
+let s: string = '';
+s = n;
+</code></pre>
+<h2 id="类型别名"><a class="header" href="#类型别名">类型别名</a></h2>
+<ul>
+<li>类型别名 对已知的类型定义名称</li>
+</ul>
+<pre><code class="language-ts">type 类型名 = 类型;
+type Gender = '男' | '女';
+type User = {
+  name: string;
+  age: number;
+  gender: Gender;
+};
+</code></pre>
+<h2 id="函数相关约束"><a class="header" href="#函数相关约束">函数相关约束</a></h2>
+<ul>
+<li>函数重载：在函数实现之前，对函数调用的多种情况进行声明</li>
+</ul>
+<pre><code class="language-ts">function combine(a: number, b: number): number;
+function combine(a: string, b: string): string;
+function combine(a: number | string, b: number | string): string | number {
+  if (typeof a === 'number' &amp;&amp; typeof b === 'number') {
+    return a * b;
+  } else if (typeof a === 'string' &amp;&amp; typeof b === 'string') {
+    return a + b;
+  }
+  throw new Error('a and b must be same type');
+}
+</code></pre>
+<ul>
+<li>可选参数：在某些参数名后加上问号，表示该参数可以不用传递，可选参数必须出现在参数列表的末尾</li>
+</ul>
+<pre><code class="language-ts">function sum(a: number, b: number, c?: number) {
+  if (c) {
+    return a + b + c;
+  } else {
+    return a + b;
+  }
+}
+function sum(a: number, b: number, c: number = 0) {
+  if (c) {
+    return a + b + c;
+  } else {
+    return a + b;
+  }
+}
+</code></pre>
+<h2 id="扑克牌小练习"><a class="header" href="#扑克牌小练习">扑克牌小练习</a></h2>
+<ul>
+<li>目标，创建一副扑克牌（不包括大小王），打印该扑克牌</li>
+</ul>
+<pre><code class="language-ts">type Deck = NormalCard[];
+type Color = '♥' | '♠' | '♦' | '♣';
+type NormalCard = {
+  color: '♥' | '♠' | '♦' | '♣';
+  mark: number;
+};
+
+function createDeck(): Deck {
+  const deck: Deck = [];
+  for (let i = 1; i &lt;= 13; i++) {
+    deck.push({
+      mark: i,
+      color: '♠',
+    });
+    deck.push({
+      mark: i,
+      color: '♣',
+    });
+    deck.push({
+      mark: i,
+      color: '♥',
+    });
+    deck.push({
+      mark: i,
+      color: '♦',
+    });
+  }
+  return deck;
+}
+
+function printDeck(deck: Deck) {
+  let result = '\n';
+  deck.forEach((card, i) =&gt; {
+    let str = card.color;
+    if (card.mark &lt;= 10) {
+      str += card.mark;
+    } else if (card.mark === 11) {
+      str += 'J';
+    } else if (card.mark === 12) {
+      str += 'Q';
+    } else {
+      str += 'K';
+    }
+    result += str + '\t';
+    if ((i + 1) % 6 === 0) {
+      result += '\n';
+    }
+  });
+  console.log(result);
+}
+
+const deck = createDeck();
+printDeck(deck);
+</code></pre>
+<h2 id="扩展类型枚举"><a class="header" href="#扩展类型枚举">扩展类型：枚举</a></h2>
+<ul>
+<li>枚举通常用于某个变量的取值范围。字面量和联合类型配合也可以达到同样的目标</li>
+<li>字面量类型的问题：
+<ul>
+<li>在类型约束位置，会产生重复代码，使用类型别名可以解决该问题</li>
+<li>逻辑含义和真实的值产生混淆，会导致修改真实值的时候，会产生大量修改</li>
+<li>字面量类型不会进入编译结果</li>
+</ul>
+</li>
+</ul>
+<pre><code class="language-ts">// enum 枚举名 {
+//   枚举字段 = 值,
+// }
+
+enum Gender {
+  male = '男',
+  female = '女',
+}
+
+let gender: Gender;
+
+gender = Gender.male;
+</code></pre>
+<ul>
+<li>
+<p>如果要修改枚举的值，甚至修改枚举的字段名，都可以只修改一处，不用修改代码里所有使用到的地方（修改字段名按 F2 就会出现输入框可以修改一处，其他地方自动修改）</p>
+</li>
+<li>
+<p>枚举会出现在编译结果中，编译成对象</p>
+</li>
+<li>
+<p>枚举的字段值可以用字符串或数字</p>
+</li>
+<li>
+<p>数字枚举的值会自动自增，不定义就从 0 开始</p>
+</li>
+<li>
+<p>被数字枚举约束的变量，可以直接赋值为数字 （不建议）</p>
+</li>
+<li>
+<p>数字枚举的编译结果和字符串枚举有差异</p>
+</li>
+<li>
+<p>最佳实践</p>
+<ul>
+<li>不要在枚举中既出现字符串值也出现数字值</li>
+<li>使用枚举，尽量使用枚举字段的名称，不要使用真实值</li>
+</ul>
+</li>
+</ul>
+<p>下面使用枚举修改之前的扑克牌代码：</p>
+<pre><code class="language-ts">type Deck = NormalCard[];
+enum Color {
+  heart = '♥',
+  spade = '♠',
+  club = '♣',
+  diamond = '♦',
+}
+enum Mark {
+  A = 'A',
+  two = '2',
+  three = '3',
+  four = '4',
+  five = '5',
+  six = '6',
+  seven = '7',
+  eight = '8',
+  nine = '9',
+  ten = '10',
+  jack = 'J',
+  queen = 'Q',
+  king = 'K',
+}
+type NormalCard = {
+  color: '♥' | '♠' | '♦' | '♣';
+  mark: Mark;
+};
+
+function createDeck(): Deck {
+  const deck: Deck = [];
+  const marks = Object.values(Mark);
+  const colors = Object.values(Color);
+
+  for (const m of marks) {
+    for (const c of colors) {
+      deck.push({
+        color: c,
+        mark: m,
+      });
+    }
+  }
+  return deck;
+}
+
+function printDeck(deck: Deck) {
+  let result = '\n';
+  deck.forEach((card, i) =&gt; {
+    let str = card.color + card.mark;
+    result += str + '\t';
+    if ((i + 1) % 6 === 0) {
+      result += '\n';
+    }
+  });
+  console.log(result);
+}
+
+const deck = createDeck();
+printDeck(deck);
+</code></pre>
+<h2 id="模块化-1"><a class="header" href="#模块化-1">模块化</a></h2>
+<ul>
+<li>ts config 模块化相关配置</li>
+</ul>
+<div class="table-wrapper"><table><thead><tr><th>配置名称</th><th>含义</th></tr></thead><tbody>
+<tr><td>module</td><td>设置编译结果中使用的模块化标准</td></tr>
+<tr><td>moduleResolution</td><td>设置解析模块的模式</td></tr>
+<tr><td>removeComments</td><td>编译结果移除注释</td></tr>
+<tr><td>noEmitOnError</td><td>错误时不生成编译结果</td></tr>
+<tr><td>esModuleInterop</td><td>启用 es 模块化交互非 es 模块导出</td></tr>
+</tbody></table>
+</div>
+<ul>
+<li>
+<p>前端模块化标准： esm commonjs amd umd system esnext</p>
+</li>
+<li>
+<p>主要关注两个：</p>
+<ul>
+<li>ts 中如何书写模块化语句</li>
+<li>编译结果是什么模块标准</li>
+</ul>
+</li>
+<li>
+<p>ts 中导入和导出模块统一使用 esm 模块系统</p>
+</li>
+<li>
+<p>编译结果使用什么模块标准是可以配置的，修改 tsconfig.json 中的 compilerOptions.module 即可</p>
+</li>
+<li>
+<p>如果 module 设置为 esm，编译结果和 ts 代码没有区别</p>
+</li>
+<li>
+<p>如果 module 设置为 commonjs ，导出的声明变成 exports 的属性，默认导出变成 exports.default 属性</p>
+</li>
+</ul>
+<pre><code class="language-ts">// index.ts
+export const name = 'kevin';
+
+export function sum(a: number, b: number): number {
+  return a + b;
+}
+
+// test.ts
+import { name, sum } from './index';
+
+console.log(name);
+console.log(sum(1, 2));
+</code></pre>
+<pre><code class="language-js">// index.js
+'use strict';
+Object.defineProperty(exports, '__esModule', { value: true });
+exports.name = void 0;
+exports.sum = sum;
+exports.name = 'kevin';
+function sum(a, b) {
+  return a + b;
+}
+
+// test.js
+('use strict');
+Object.defineProperty(exports, '__esModule', { value: true });
+const index_1 = require('./index');
+console.log(index_1.name);
+console.log((0, index_1.sum)(1, 2));
+</code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="eslint代码规范"><a class="header" href="#eslint代码规范">ESLint代码规范</a></h1>
 <h2 id="基础使用-1"><a class="header" href="#基础使用-1">基础使用</a></h2>
 <p>ESLint 是一个用来检查代码错误的工具。</p>
@@ -29570,7 +30128,6 @@ async function concurrentControlWithRetry(
             window.setTimeout(window.print, 100);
         });
         </script>
-
 
     </div>
     </body>

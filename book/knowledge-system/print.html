@@ -26780,7 +26780,19 @@ the module (for instance, using `npm rebuild` or `npm install`).
 </ul>
 <h2 id="打包报错"><a class="header" href="#打包报错">打包报错</a></h2>
 <ul>
-<li>打包过程中莫名其妙的报错，并且没有任何错误信息提示，那么极有可能是因为使用了 <code>electron-builder</code> 的钩子函数，例如 <code>afterPack</code> <code>afterAllArtifactBuild</code> <code>beforePack</code> 等等指定的 js 文件报错了，所以去 <code>package.json</code> 文件中将这些钩子函数先删掉然后重新打包再看看</li>
+<li>
+<p>打包过程中莫名其妙的报错，并且没有任何错误信息提示，那么极有可能是因为使用了 <code>electron-builder</code> 的钩子函数，例如 <code>afterPack</code> <code>afterAllArtifactBuild</code> <code>beforePack</code> 等等指定的 js 文件报错了，所以去 <code>package.json</code> 文件中将这些钩子函数先删掉然后重新打包再看看</p>
+</li>
+<li>
+<p>打包后发现 <code>.asar</code> 中没有 <code>node_modules</code> 目录，环境为 <code>node 22.15.0</code> <code>npm 10.9.2</code> <code>electron-builder@26.0.12</code> windows。windows cmd 设置下面的命令开启 <code>electron-builder</code> <a href="https://www.electron.build/electron-builder/index.html#debug">DEBUG</a> 模式</p>
+<pre><code class="language-bash">set DEBUG=electron-builder
+</code></pre>
+<p>然后会发现 <code>electron-builder</code> 收集到的 <code>node_modules</code> 依赖是空数组，已经在 <a href="https://github.com/electron-userland/electron-builder/issues/8970#issuecomment-3218282500">issue</a> 中留言，等待 <code>electron-builder</code> 官方回复，目前解决方法是将 <code>electron-builder</code> 降低至版本 26.0.2</p>
+</li>
+</ul>
+<h2 id="electron-builder打包之后exe图标问题"><a class="header" href="#electron-builder打包之后exe图标问题">electron-builder打包之后exe图标问题</a></h2>
+<ul>
+<li>出现一种情况，打包之后的 <code>win-unpacked</code> 目录下 exe 文件的图标和右键属性详细信息都是正常的，用自定义的 nsis 打包之后的安装包安装完成之后的软件打开后，任务栏的图标确变成了 electron 默认图标，并且安装目录下的 exe 文件的图标和属性详细信息也变成了 electron 默认的。这有可能是 windows 系统对于图标的缓存造成的，重启系统这个问题就自动好了</li>
 </ul>
 <h2 id="参考链接"><a class="header" href="#参考链接">参考链接</a></h2>
 <ul>
@@ -26790,6 +26802,9 @@ the module (for instance, using `npm rebuild` or `npm install`).
 <li><a href="https://www.electronjs.org/zh/docs/latest/tutorial/sandbox">进程沙盒化</a></li>
 <li><a href="https://stackoverflow.com/questions/77992943/some-windows-pcs-forces-sandbox-mode-on-electron-chromium">Some Windows PCs forces Sandbox mode on Electron Chromium</a></li>
 <li><a href="https://github.com/electron/electron/issues/18265">Need a way to run with --no-sandbox by default #18265</a></li>
+<li><a href="https://github.com/electron-userland/electron-builder/issues/2071">The built exe file is using Electron's Icon #2071</a></li>
+<li><a href="https://github.com/electron-userland/electron-builder/issues/8970#issuecomment-3218282500">"Cannot find module 'sharp'" on Windows only after upgrading to 26.0.11 #8970</a></li>
+<li><a href="https://www.electron.build/electron-builder/index.html#debug">electron-builder Debug</a></li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="electron-全量更新与增量更新"><a class="header" href="#electron-全量更新与增量更新">electron 全量更新与增量更新</a></h1>
 <ul>
@@ -27419,7 +27434,14 @@ module.exports = async context =&gt; {
   }
 }
 </code></pre>
+<ul>
+<li>
 <p>这里需要注意的是，在 windows 下，文本的换行符是 <code>\r\n</code> 所以需要拼接换行符字符串，否则子进程执行批处理脚本会失败，然后 windows 下字符编码多是 'gbk' 编码，需要转换成 <code>gbk</code> 编码，否则一旦路径中出现中文字符，脚本也会失败，最后通过子进程的 <code>spawn</code> 的参数 <code>detached</code> 设置为 <code>true</code>，使得子进程与父进程分离开独立运行（父进程退出不会导致子进程也退出），<code>shell</code>设置为 <code>true</code>，因为在 <code>shell</code> 中运行脚本才能支持很多丰富的语法，<code>windowsHide</code> 隐藏子进程打开的命令行窗口，stdio 设置子进程的输入，输出，和错误信息组成的数组，忽略掉输入，将子进程的输出和错误信息写入本地硬盘文件，方便调试。最后调用 <code>child.unref()</code>，通常父进程会等待子进程退出，调用 <code>child.unref()</code> 后父进程不再等待子进程，会提前退出</p>
+</li>
+<li>
+<p>这里需要注意，项目路径或者说批处理文件的路径中不要有特殊符号，比如括号之类的符号，否则子进程 spawn 方法也会调用失败</p>
+</li>
+</ul>
 <h2 id="参考链接-2"><a class="header" href="#参考链接-2">参考链接</a></h2>
 <ul>
 <li><a href="https://nodejs.org/docs/latest/api/child_process.html#child_processspawncommand-args-options">child_process.spawn(command[, args][, options])</a></li>
@@ -27562,6 +27584,107 @@ if (app.isPackaged) {
 }
 </code></pre>
 <h2 id="commonjs-模块兼容-win7"><a class="header" href="#commonjs-模块兼容-win7">commonjs 模块兼容 win7</a></h2>
+<ul>
+<li>从主分支新建一个 <code>feature/electron-v21.4.4</code> 分支，以支持 win7 系统打包，electron 版本切换到 21.4.4 版本</li>
+</ul>
+<pre><code class="language-bash">npm install electron@21.4.4 --save-dev
+</code></pre>
+<ul>
+<li><code>package.json</code> 中 type 设置为 <code>commonjs</code></li>
+</ul>
+<pre><code class="language-json">{
+  "type": "commonjs"
+}
+</code></pre>
+<ul>
+<li>ts 配置文件修改 module 为 commonjs</li>
+</ul>
+<pre><code class="language-json">{
+  "compilerOptions": {
+    "allowJs": true,
+    "outDir": "./maindist",
+    "module": "CommonJS",
+    "target": "esnext",
+    "moduleResolution": "Node",
+    "rootDir": "./main",
+    "removeComments": true,
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true
+  },
+  "include": ["./main/**/*"],
+  "exclude": ["node_modules", "dist", "./main/preload.ts"]
+}
+</code></pre>
+<ul>
+<li>vite 配置文件中配置需要修改成 cjs <code>build.lib.formats</code> <code>build.rollupOptions.output.format</code></li>
+</ul>
+<pre><code class="language-js">import { defineConfig } from 'vite';
+import path from 'path';
+import { nodeResolve } from '@rollup/plugin-node-resolve';
+import commonjs from '@rollup/plugin-commonjs';
+
+const nodeBuiltins = [
+  'node:http',
+  'node:https',
+  'node:fs',
+  'node:fs/promises',
+  'node:path',
+  'node:url',
+  'node:child_process',
+  'module',
+];
+
+export default defineConfig({
+  root: path.resolve(__dirname, './main'),
+  build: {
+    outDir: path.resolve(__dirname, 'maindist'),
+    emptyOutDir: false,
+    target: 'node22',
+    lib: {
+      entry: ['index.ts'],
+      formats: ['cjs'],
+      fileName: (format, entryName) =&gt; {
+        return `${entryName}.js`;
+      },
+    },
+    rollupOptions: {
+      external: [
+        ...nodeBuiltins,
+        'electron',
+        'electron-log',
+        'dotenv',
+        'electron-updater',
+        'iconv-lite',
+        'better-sqlite3',
+      ],
+      plugins: [
+        nodeResolve({
+          preferBuiltins: true,
+          browser: false,
+        }),
+        commonjs({
+          include: /node_modules/,
+          esmExternals: false,
+        }),
+      ],
+      output: {
+        entryFileNames: 'index.js',
+        format: 'cjs',
+        externalLiveBindings: true,
+        globals: {
+          electron: 'electron',
+        },
+        sourcemap: true,
+        sourcemapExcludeSources: false,
+      },
+    },
+  },
+});
+</code></pre>
 <h2 id="参考链接-3"><a class="header" href="#参考链接-3">参考链接</a></h2>
 <ul>
 <li><a href="https://www.electronjs.org/docs/latest/tutorial/esm">ES Modules (ESM) in Electron</a></li>
@@ -28032,6 +28155,1008 @@ export default defineConfig({
 <ul>
 <li><a href="https://www.electron.build/configuration#files">electron-builder configuration files</a></li>
 </ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="集成自定义-nsis-打包"><a class="header" href="#集成自定义-nsis-打包">集成自定义 nsis 打包</a></h1>
+<ul>
+<li>
+<p><code>electron-builder</code> 自带的 nsis 最后的安装包界面比较普通简陋，并且不能自定义所有界面的样式，因此大多数情况下可能需要自己编写 nsis 脚本制作安装包，或者使用第三方的 nsis 插件来制作安装包，这时候就需要调整升级的逻辑，因为 <code>electron-builder</code> 只为自带的 nsis 提供升级文件的生成，如果要自己打包 nsis，那么需要自己写脚本生成对应的 <code>latest.yml</code> 升级文件</p>
+</li>
+<li>
+<p>这里使用的是 <code>nsNiuniuSkin</code> 这个第三方制作 nsis 的插件</p>
+</li>
+</ul>
+<h2 id="集成-nsniuniuskin"><a class="header" href="#集成-nsniuniuskin">集成 nsNiuniuSkin</a></h2>
+<ul>
+<li>首先去 <a href="http://www.leeqia.com/nsniuniuskin/download/">nsNiuniuSkin</a> 官网下载插件，下载后解压到项目根目录下</li>
+</ul>
+<pre><code class="language-json">nsis_publish
+└─FilesToInstall // 放需要打包的文件
+  ├─locales
+  ├─resources
+  │ ├─app.asar.unpacked
+  │ ├─app-update.yml
+  │ ├─app.asar
+  ├─chrome_100_percent.pak
+  ├─chrome_200_percent.pak
+  ├─d3dcompiler_47.dll
+  ├─electron-update.exe
+  ├─ffmpeg.dll
+  ├─icudtl.dat
+  ├─libEGL.dll
+  ├─libGLESv2.dll
+  ├─LICENSE.electron.txt
+  ├─LICENSES.chromium.html
+  ├─resources.pak
+  ├─snapshot_blob.bin
+  ├─v8_context_snapshot.bin
+  ├─vk_swiftshader_icd.json
+  ├─vk_swiftshader.dll
+  ├─vulkan-1.dll
+└─NSIS // NSIS完整软件
+└─Output // 输出目录，打包好的安装包会放到这里
+  ├─electron-update_V0.0.18.exe
+└─SetupScripts
+  ├─nim
+  │ ├─skin
+  │ ├─icon.ico
+  │ ├─licence.rtf
+  │ ├─license.txt // 协议文件
+  │ ├─nim_setup.nsi // nsis 脚本入口
+  │ ├─skin.zip
+  │ ├─ui_nim_setup.nsh // nsis 脚本
+  │ ├─uninst.ico
+  ├─app.7z
+  ├─app.nsh
+  ├─commonfunc.nsh // nsis 脚本通用函数
+└─7z.dll
+└─7z.exe
+└─安装包报毒解决方法.txt
+└─打包配置及流程说明.doc
+└─build-nim-nozip.bat
+└─build-nim.bat
+└─Description_of_NiuniuSetupSkin.doc
+└─getCodeStructure.cjs
+└─makeapp.bat
+└─makensiscode.bat
+└─makeskinzip.bat
+└─NSIS.chm
+</code></pre>
+<ul>
+<li>修改 <code>nsis_publish/SetupScripts/nim/nim_setup.nsi</code> 入口文件的基本信息</li>
+</ul>
+<pre><code class="language-bash"># ====================== 自定义宏 产品信息==============================
+!define PRODUCT_NAME           		"electron-update"  # 软件名
+!define PRODUCT_PATHNAME 			"electron-update"  #安装卸载项用到的KEY
+!define INSTALL_APPEND_PATH         "electron-update"	  #安装路径追加的名称
+!define INSTALL_DEFALT_SETUPPATH    ""       #默认生成的安装路径
+!define EXE_NAME               		"electron-update.exe" # 可执行文件名字
+!define PRODUCT_VERSION        		"0.0.18.0" # nsis 版本号，这里后续会使用 VIProductVersion 来设置安装程序的 VS_FIXEDFILEINFO 版本信息块中的版本号，必须4位
+!define PRODUCT_SHOW_VERSION        "0.0.18" # 对外显示的版本号
+!define PRODUCT_PUBLISHER      		"hahazexia" # 软件发布者
+!define PRODUCT_LEGAL          		"hahazexia 2025" # 版权信息
+!define INSTALL_OUTPUT_NAME    		"${PRODUCT_NAME}_V${PRODUCT_SHOW_VERSION}.exe" # 安装包文件最终的名字
+
+# ====================== 自定义宏 安装信息==============================
+!define INSTALL_7Z_PATH 	   		"..\app.7z"
+!define INSTALL_7Z_NAME 	   		"app.7z"
+!define INSTALL_RES_PATH       		"skin.zip"
+!define INSTALL_LICENCE_FILENAME    "license.txt"
+!define INSTALL_ICO 				"icon.ico"
+!define UNINSTALL_ICO 				"uninst.ico"
+
+; Compression algorithm configuration (must be placed at the very beginning of the script)
+; Use LZMA algorithm with solid compression (highest compression ratio)
+; SetCompressor /SOLID lzma # 可以开启 lzma 压缩
+
+; Set compression dictionary size (optional, range 4-64, unit: MB)
+; Larger values provide better compression but increase compression time, 16 or 32 recommended
+; SetCompressorDictSize 4 # 设置压缩字典大小
+
+!include "ui_nim_setup.nsh" # 引入主脚本
+
+# ==================== NSIS属性 ================================
+
+# 针对Vista和win7 的UAC进行权限请求.
+# RequestExecutionLevel none|user|highest|admin
+RequestExecutionLevel admin
+
+
+; 安装包名字.
+Name "${PRODUCT_NAME}"
+
+# 安装程序文件名.
+
+OutFile "..\..\Output\${INSTALL_OUTPUT_NAME}"
+
+;$PROGRAMFILES32\Netease\NIM\
+
+InstallDir "1"
+
+# 安装和卸载程序图标
+Icon              "${INSTALL_ICO}"
+UninstallIcon     "${UNINSTALL_ICO}"
+
+</code></pre>
+<ul>
+<li>修改 <code>nsis_publish/SetupScripts/nim/ui_nim_setup.nsh</code> 文件中的静默安装入口函数，放在 silentInstallSec 中的方法会在自动升级的时候提供静默安装的能力</li>
+</ul>
+<pre><code class="language-bash"># 添加一个静默安装的入口
+Section "silentInstallSec" SEC01
+    #MessageBox MB_OK|MB_ICONINFORMATION "Test silent install. you can add your silent install code here."
+	; FileOpen $0 "$DESKTOP\silent_install.log" w
+    ; FileWrite $0 "enter silent install section 1 \r\n"
+    ; FileClose $0
+
+    Pop $0
+
+	Call GenerateSetupAddress
+
+    GetFunctionAddress $0 ExtractFunc
+    BgWorker::CallAndWait
+
+	SetShellVarContext all
+	CreateShortCut "$DESKTOP\${PRODUCT_NAME}.lnk" "$INSTDIR\${EXE_NAME}"
+	SetShellVarContext current
+
+	Call CreateAppShortcut
+
+	Call CreateUninstall
+
+	StrCpy $InstallState "1"
+
+	Call OnFinished
+SectionEnd
+</code></pre>
+<ul>
+<li>然后可以去 <code>nsis_publish/SetupScripts/nim/skin</code> 目录下修改 xml 文件和图片文件，xml 文件就对应了安装包中的页面</li>
+</ul>
+<div class="table-wrapper"><table><thead><tr><th>xml 文件</th><th>说明</th></tr></thead><tbody>
+<tr><td>install.xml</td><td>安装程序的入口</td></tr>
+<tr><td>configpage.xml</td><td>打开安装包后显示的第一个界面，也是选择安装路径的界面</td></tr>
+<tr><td>licensepage.xml</td><td>许可协议显示界面</td></tr>
+<tr><td>installingpage.xml</td><td>安装过程界面</td></tr>
+<tr><td>finishpage.xml</td><td>安装完成界面</td></tr>
+<tr><td>uninstallpage.xml</td><td>卸载入口界面</td></tr>
+<tr><td>uninstallingpage.xml</td><td>卸载过程界面</td></tr>
+<tr><td>uninstallfinishpage.xml</td><td>卸载完成界面</td></tr>
+<tr><td>msgBox.xml</td><td>二级弹窗</td></tr>
+</tbody></table>
+</div>
+<ul>
+<li>
+<p><code>nsis_publish/SetupScripts/nim/logo.ico</code> 是安装器图标，<code>nsis_publish/SetupScripts/nim/uninst.ico</code> 是卸载器图标</p>
+</li>
+<li>
+<p><code>nsis_publish/SetupScripts/nim/ui_nim_setup.nsh</code> 中是主要逻辑</p>
+</li>
+</ul>
+<div class="table-wrapper"><table><thead><tr><th>方法名</th><th>说明</th></tr></thead><tbody>
+<tr><td>DUIPage</td><td>安装入口脚本，用于初始化一些信息</td></tr>
+<tr><td>un.DUIPage</td><td>卸载入口脚本</td></tr>
+<tr><td>BindUIControls</td><td>绑定安装的界面事件</td></tr>
+<tr><td>ShowMsgBox</td><td>显示二级子窗口</td></tr>
+<tr><td>OnBtnInstall</td><td>安装主流程控制</td></tr>
+</tbody></table>
+</div>
+<h2 id="nsis-语法"><a class="header" href="#nsis-语法">nsis 语法</a></h2>
+<ul>
+<li>Setup 安装程序是基于 NSIS 这个工具来制作的，使用了 <code>nsNiuniuSkin.dll</code> 这个插件来负责UI的控制</li>
+</ul>
+<pre><code class="language-nsh">Var InstallState
+StrCpy $InstallState "0"
+
+# Var是声明变量的关键字
+# $符号用于引用变量
+# StrCpy是字符串复制函数，语法为StrCpy $目标变量 "源字符串"
+
+</code></pre>
+<ul>
+<li>nsis 脚本中有 20 个预设的变量</li>
+</ul>
+<pre><code class="language-nsh">$0 $1 $2 $3 $4 $5 $6 $7 $8 $9 $10
+$11 $12 $13 $14 $15 $16 $17 $18 $19 $20
+</code></pre>
+<ul>
+<li>这些变量和自己写的变量用法是一样的，但通常用于共享的方法和宏中。这些变量不需要专门去声明，建议使用栈<code>stack</code>来存放这些变量的值。这些变量也可被用于插件间的通信，因为它们可被插件 DLL 文件读写。
+<pre><code class="language-nsh">  # 表示将函数 OnBtnInstall 的地址获取后存入$0变量，后续可通过 $0 调用该函数。
+  GetFunctionAddress $0 OnBtnInstall
+</code></pre>
+</li>
+<li>还有 4 个变量</li>
+</ul>
+<div class="table-wrapper"><table><thead><tr><th>变量</th><th>说明</th></tr></thead><tbody>
+<tr><td>$INSTDIR</td><td>安装目录</td></tr>
+<tr><td>$OUTDIR</td><td>输出目录</td></tr>
+<tr><td>$CMDLINE</td><td>进入安装包的命令行</td></tr>
+<tr><td>$LANGUAGE</td><td>当前使用的语言，可以在 onInit 回调中指定语言，英语 1033 中文 2052</td></tr>
+</tbody></table>
+</div>
+<ul>
+<li>有大量预设的常量可以使用</li>
+</ul>
+<div class="table-wrapper"><table><thead><tr><th>常量</th><th>说明</th></tr></thead><tbody>
+<tr><td>$PROGRAMFILES</td><td>在64位系统中指向C:\Program Files (x86)</td></tr>
+<tr><td>$PROGRAMFILES32</td><td>指向C:\Program Files (x86)</td></tr>
+<tr><td>$PROGRAMFILES64</td><td>在64位系统中指向C:\Program Files</td></tr>
+<tr><td>$DESKTOP</td><td>Windows桌面地址</td></tr>
+<tr><td>$EXEDIR</td><td>安装包所在的目录</td></tr>
+<tr><td>$EXEFILE</td><td>安装程序文件名</td></tr>
+<tr><td>$EXEPATH</td><td>$EXEDIR和$EXEFILE拼合到一起的安装文件全路径</td></tr>
+<tr><td>${NSISDIR}</td><td>NSIS程序的安装目录地址，如D:\NSIS</td></tr>
+<tr><td>$WINDIR</td><td>Windows目录地址，如C:\Windows</td></tr>
+<tr><td>$SYSDIR</td><td>Windows下system目录地址，如C:\Windows\System32</td></tr>
+<tr><td>$TEMP</td><td>系统临时目录地址，如C:\Users\linxinfa\AppData\Local\Temp</td></tr>
+<tr><td>$STARTMENU</td><td>开始菜单地址，如C:\Users\linxinfa\AppData\Roaming\Microsoft\Windows\Start Menu</td></tr>
+<tr><td>$SMPROGRAMS</td><td>开始菜单下Programs地址，如C:\Users\linxinfa\AppData\Roaming\Microsoft\Windows\Start Menu\Programs</td></tr>
+<tr><td>$QUICKLAUNCH</td><td>快速启动栏，如C:\Users\linxinfa\AppData\Roaming\Microsoft\Internet Explorer\Quick Launch</td></tr>
+<tr><td>$DOCUMENTS</td><td>“我的文档” 目录地址，如C:\Users\linxinfa\Documents</td></tr>
+<tr><td>$FONTS</td><td>“字体” 目录地址，如C:\Windows\Fonts</td></tr>
+<tr><td>$$</td><td>转义，用来表示 $</td></tr>
+<tr><td>$\r</td><td>用来表示一个回车(\r)</td></tr>
+<tr><td>$\n</td><td>用来表示新的一行(\n)</td></tr>
+<tr><td>$\t</td><td>用来表示一个 Tab(\t)</td></tr>
+</tbody></table>
+</div>
+<ul>
+<li>其他语法</li>
+</ul>
+<pre><code class="language-nsh"># 函数定义
+Function ShowMsgBox
+	# 函数体
+FunctionEnd
+
+# 函数调用
+Call ShowMsgBox
+
+# 带返回值的函数
+Function SimpleTest
+  Push "OK"
+FunctionEnd
+
+# 调用带返回值的函数
+Call SimpleTest
+Pop $0
+${If} $0 == "OK"
+	MessageBox MB_OK|MB_ICONEXCLAMATION "函数返回了OK"
+${EndIf}
+
+
+# if 条件语句
+# 安装界面点击退出，给出提示 
+Function OnExitDUISetup
+	${If} $InstallState == "0"		
+		StrCpy $R8 "安装尚未完成，您确定退出安装么？"
+		StrCpy $R7 "1"
+		Call ShowMsgBox
+		pop $0
+		${If} $0 == 0
+			goto endfun
+		${EndIf}
+	${EndIf}
+	nsNiuniuSkin::ExitDUISetup
+endfun:    
+FunctionEnd
+
+# 引入外部脚本：include
+!include "StrFunc.nsh"
+!include "LogicLib.nsh"
+!include "..\commonfunc.nsh"
+
+# 定义常量
+!define INSTALL_PAGE_CONFIG 			0
+!define INSTALL_PAGE_PROCESSING 		1
+!define INSTALL_PAGE_FINISH 			2
+
+# 以 ;或#开始的行为注释行。可以在命令后面添加注释，也可以使用C规范的注释来注释一行或多行。
+; 注释
+# 注释
+/*
+注释
+注释
+*/
+
+</code></pre>
+<h2 id="ui界面"><a class="header" href="#ui界面">UI界面</a></h2>
+<ul>
+<li>
+<p>布局：VerticalLayout 与 HorizontalLayout 布局分水平布局和垂直布局</p>
+<pre><code class="language-xml">  &lt;VerticalLayout&gt;
+    &lt;!-- 垂直布局 --&gt;
+  &lt;/VerticalLayout&gt;
+  &lt;HorizontalLayout&gt;
+    &lt;!-- 水平布局 --&gt;
+  &lt;/HorizontalLayout&gt;
+</code></pre>
+</li>
+<li>
+<p>留空：Control 界面布局中，我们有时候需要做一些留空，我们可以使用Control来实现留空，有点类似html中的div。比如这里留了25个像素的空行</p>
+<pre><code class="language-xml">  &lt;Control height="25" /&gt;
+</code></pre>
+</li>
+<li>
+<p>图片，图片路径是相对于 skin 目录</p>
+<pre><code class="language-xml">  &lt;VerticalLayout width="480"
+          height="250"
+          roundcorner="5,5"
+          bkimage="file='form\pic.png'"&gt;
+</code></pre>
+</li>
+<li>
+<p>显示文本，内边距：padding UI在布局中，可以设置相对于父控件的边距，顺序是：左、上、右、下</p>
+<pre><code class="language-xml">  &lt;Label font="5"
+    textcolor="#FF333333"
+    text="安装路径："
+    padding="40,0,30,0" /&gt;
+
+</code></pre>
+</li>
+<li>
+<p>显示按钮：Button，要指定各种状态的图片 normalimage 普通状态 hotimage 鼠标悬停状态 pushedimage 被点击状态 disabledimage 禁用状态</p>
+<pre><code class="language-xml">  &lt;Button name="btnInstall"
+    padding="95,10,95,30"
+    height="40"
+    normalimage="form\btn_installation_normal.png"
+    hotimage="form\btn_installation_hovered.png"
+    pushedimage="form\btn_installation_pressed.png"
+    disabledimage="form\btn_installation_disable.png"
+    font="6"
+    textcolor="0xffffffff"
+    disabledtextcolor="0xffffffff"
+    margin="0,10,0,0"
+    text="一键安装" /&gt;
+
+</code></pre>
+</li>
+<li>
+<p>图片也可以只使用一张图，设置不同坐标和大小</p>
+<ul>
+<li><code>source='0,0,29,26'</code>从图片左上角坐标(0,0)开始，截取宽 29px、高 26px 的区域作为正常状态图像</li>
+<li><code>source='0,26,29,52'</code> 截取坐标(0,26)到(29,52)的区域（即正常状态区域正下方的 26px 高度区域）</li>
+<li><code>source='0,52,29,78'</code> 截取坐标(0,52)到(29,78)的区域（即悬停状态区域正下方的 26px 高度区域）</li>
+</ul>
+<pre><code class="language-xml">  &lt;Button name="btnClose" width="29" height="29"
+    normalimage="file='form\close1.png' source='0,0,29,26'"
+    hotimage="file='form\close1.png' source='0,26,29,52'"
+    pushedimage="file='form\close1.png' source='0,52,29,78'" /&gt;
+
+</code></pre>
+</li>
+<li>
+<p>按钮的点击响应 比如一键安装按钮，在 xml 给按钮取名字叫"btnInstall"</p>
+<pre><code class="language-xml">  &lt;Button name="btnInstall"
+    padding="95,10,95,30"
+    height="40"
+    normalimage="form\btn_installation_normal.png"
+    hotimage="form\btn_installation_hovered.png"
+    pushedimage="form\btn_installation_pressed.png"
+    disabledimage="form\btn_installation_disable.png"
+    font="6"
+    textcolor="0xffffffff"
+    disabledtextcolor="0xffffffff"
+    margin="0,10,0,0"
+    text="一键安装" /&gt;
+</code></pre>
+<ul>
+<li>nsh 中通过名字来设置按钮的点击函数</li>
+</ul>
+<pre><code class="language-nsh">  GetFunctionAddress $0 OnBtnInstall
+  nsNiuniuSkin::BindCallBack $hInstallDlg "btnInstall" $0
+
+  # 开始安装
+  Function OnBtnInstall
+
+  FunctionEnd
+</code></pre>
+</li>
+<li>
+<p>输入框 例如 安装路径的输入框</p>
+<pre><code class="language-xml">  &lt;RichEdit  name="editDir"
+  		text=""
+  		textcolor="0xFF000000"
+  		inset="5,8,2,2"
+  		bkimage="public\edit\edit0.png"
+  		autohscroll="false"
+  		bordervisible="true"
+  		bordersize="1"
+  		bordercolor="0xFFD1D1D1"
+  		focusbordercolor="0xFFD1D1D1"
+  		wantreturn="false"
+  		wantctrlreturn="false"
+  		multiline="false"
+  		width="360" /&gt;
+
+</code></pre>
+<ul>
+<li>
+<p>nsh中设置默认安装路径</p>
+<pre><code class="language-nsh">  nsNiuniuSkin::SetControlAttribute $hInstallDlg "editDir" "text" "$INSTDIR\"
+</code></pre>
+</li>
+<li>
+<p>获取路径输入框中的文本</p>
+<pre><code class="language-nsh">  nsNiuniuSkin::GetControlAttribute $hInstallDlg "editDir" "text"
+  Pop $0	
+  StrCpy $INSTDIR "$0"
+</code></pre>
+</li>
+</ul>
+</li>
+<li>
+<p>禁用和激活 UI 比如通过许可协议的勾选来控制按钮的禁用与激活</p>
+<pre><code class="language-nsh">  #根据选中的情况来控制按钮是否灰度显示 
+  Function OnCheckLicenseClick
+    nsNiuniuSkin::GetControlAttribute $hInstallDlg "chkAgree" "selected"
+      Pop $0
+    ${If} $0 == "0"
+      nsNiuniuSkin::SetControlAttribute $hInstallDlg "btnInstall" "enabled" "true"
+    ${Else}
+      nsNiuniuSkin::SetControlAttribute $hInstallDlg "btnInstall" "enabled" "false"
+      ${EndIf}
+  FunctionEnd
+</code></pre>
+</li>
+<li>
+<p>Slider 进度条</p>
+<pre><code class="language-xml">&lt;Slider name="slrProgress"
+  padding="30,0,30,0"
+  height="3"
+  mouse="false"
+  foreimage="form\fg.png"
+  bkimage="form\bg.png"
+  thumbsize="0,0"
+  bkcolor="#FFD8D8D8"  /&gt;
+</code></pre>
+<ul>
+<li>
+<p>nsh中更新进度条</p>
+<pre><code class="language-nsh">  nsNiuniuSkin::SetControlAttribute $hInstallDlg "slrProgress" "value" "$0"
+</code></pre>
+</li>
+</ul>
+</li>
+<li>
+<p>页面切换 安装程序会有多个页面，比如安装向导界面、安装中界面、安装完成界面等，每个界面有对应的ID我们需要在逻辑中做界面切换。在 install.xml 中会先配置好这些界面的 xml，如下</p>
+<pre><code class="language-xml">  &lt;TabLayout name="wizardTab"  &gt;
+    &lt;Include source="configpage.xml" /&gt;
+    &lt;Include source="installingpage.xml" /&gt;
+    &lt;Include source="finishpage.xml" /&gt;
+    &lt;Include source="uninstallpage.xml" /&gt;
+    &lt;Include source="uninstallingpage.xml" /&gt;
+    &lt;Include source="uninstallfinishpage.xml" /&gt;
+  &lt;/TabLayout&gt;
+
+</code></pre>
+<ul>
+<li>在代码中，定义好它们的 ID
+<pre><code class="language-nsh">  !define INSTALL_PAGE_CONFIG 			0
+  !define INSTALL_PAGE_PROCESSING 		1
+  !define INSTALL_PAGE_FINISH 			2
+  !define INSTALL_PAGE_UNISTCONFIG 		3
+  !define INSTALL_PAGE_UNISTPROCESSING 	4
+  !define INSTALL_PAGE_UNISTFINISH 		5
+
+</code></pre>
+</li>
+<li>然后通过接口进行切换界面
+<pre><code class="language-nsh">  nsNiuniuSkin::ShowPageItem $hInstallDlg "wizardTab" ${INSTALL_PAGE_PROCESSING}
+</code></pre>
+</li>
+</ul>
+</li>
+<li>
+<p>路径选择 用户可以选择自定义安装，选择安装的路径，我们可以调用 nsNiuniuSkin::SetControlAttribute 这个接口弹出路径选择窗口</p>
+<pre><code class="language-nsh">  Function OnBtnSelectDir
+      nsNiuniuSkin::SelectInstallDirEx $hInstallDlg "请选择安装路径"
+      Pop $0
+      # 如果选择路径不为空，则赋值到editDir这个编辑框中，注意Unless的含义，它等价于if的否
+    ${Unless} "$0" == ""
+      nsNiuniuSkin::SetControlAttribute $hInstallDlg "editDir" "text" $0
+    ${EndUnless}
+  FunctionEnd
+
+</code></pre>
+</li>
+<li>
+<p>弹出提示框 比如关闭安装程序的时候弹出提示框 对应的布局 xml 文件是 msgBox.xml</p>
+<pre><code class="language-nsh">  Function ShowMsgBox
+    nsNiuniuSkin::InitSkinSubPage "msgBox.xml" "btnOK" "btnCancel,btnClose"  ; "提示" "${PRODUCT_NAME} 正在运行，请退出后重试!" 0
+    Pop $hInstallSubDlg
+    nsNiuniuSkin::SetControlAttribute $hInstallSubDlg "lblTitle" "text" "提示"
+    nsNiuniuSkin::SetControlAttribute $hInstallSubDlg "lblMsg" "text" "$R8"
+    ${If} "$R7" == "1"
+      nsNiuniuSkin::SetControlAttribute $hInstallSubDlg "btnCancel" "visible" "true"
+    ${EndIf}
+  FunctionEnd
+</code></pre>
+<ul>
+<li>$R8 变量存放显示的文本，$R7 变量控制是否显示取消按钮
+<pre><code class="language-nsh">  #安装界面点击退出，给出提示 
+  Function OnExitDUISetup
+    ${If} $InstallState == "0"		
+      StrCpy $R8 "安装尚未完成，您确定退出安装么？"
+      StrCpy $R7 "1"
+      Call ShowMsgBox
+      pop $0
+      ${If} $0 == 0
+        goto endfun
+      ${EndIf}
+    ${EndIf}
+    nsNiuniuSkin::ExitDUISetup
+  endfun:    
+  FunctionEnd
+
+</code></pre>
+</li>
+</ul>
+</li>
+<li>
+<p>获取和修改界面 UI 控件的属性 每个 UI 控件都有各自的属性，比如 visible、pos、height 等。安装程序运行中，我们需要根据情况动态修改 UI 控件的属性，点击下拉和收起按钮，我们需要对应得调整窗口</p>
+<pre><code class="language-nsh">  # 展开
+  Function OnBtnShowMore	
+    nsNiuniuSkin::SetControlAttribute $hInstallDlg "btnShowMore" "enabled" "false"
+    nsNiuniuSkin::SetControlAttribute $hInstallDlg "btnHideMore" "enabled" "false"
+    nsNiuniuSkin::SetControlAttribute $hInstallDlg "moreconfiginfo" "visible" "true"
+    nsNiuniuSkin::SetControlAttribute $hInstallDlg "btnHideMore" "visible" "true"
+    nsNiuniuSkin::SetControlAttribute $hInstallDlg "btnShowMore" "visible" "false"
+    # 调整窗口高度 
+    GetFunctionAddress $0 StepHeightSizeAsc
+    BgWorker::CallAndWait
+  FunctionEnd
+
+  # 收起
+  Function OnBtnHideMore
+    nsNiuniuSkin::SetControlAttribute $hInstallDlg "btnShowMore" "enabled" "false"
+    nsNiuniuSkin::SetControlAttribute $hInstallDlg "btnHideMore" "enabled" "false"
+    nsNiuniuSkin::SetControlAttribute $hInstallDlg "moreconfiginfo" "visible" "false"
+    nsNiuniuSkin::SetControlAttribute $hInstallDlg "btnHideMore" "visible" "false"
+    nsNiuniuSkin::SetControlAttribute $hInstallDlg "btnShowMore" "visible" "true"
+    ;调整窗口高度
+    GetFunctionAddress $0 StepHeightSizeDsc
+      BgWorker::CallAndWait
+    nsNiuniuSkin::SetWindowSize $hInstallDlg 600 390
+    nsNiuniuSkin::SetControlAttribute $hInstallDlg "btnShowMore" "enabled" "true"
+    nsNiuniuSkin::SetControlAttribute $hInstallDlg "btnHideMore" "enabled" "true"
+  FunctionEnd
+</code></pre>
+</li>
+<li>
+<p>UI 控件常用的属性</p>
+</li>
+</ul>
+<div class="table-wrapper"><table><thead><tr><th>属性名</th><th>数据类型</th><th>默认值</th><th>描述</th></tr></thead><tbody>
+<tr><td>pos</td><td>RECT</td><td>0,0,0,0</td><td>位置</td></tr>
+<tr><td>padding</td><td>RECT</td><td>0,0,0,0</td><td>内边距</td></tr>
+<tr><td>bkcolor</td><td>DWORD</td><td>0x00000000</td><td>背景颜色</td></tr>
+<tr><td>bordercolor</td><td>DWORD</td><td>0x00000000</td><td>边框颜色</td></tr>
+<tr><td>focusbordercolor</td><td>DWORD</td><td>0x00000000</td><td>获得焦点时边框的颜色</td></tr>
+<tr><td>bordersize</td><td>INT或RECT</td><td>0</td><td>边框大小，可以用INT也可以用RECT</td></tr>
+<tr><td>leftbordersize</td><td>INT</td><td>0</td><td>左边边框大小</td></tr>
+<tr><td>topbordersize</td><td>INT</td><td>0</td><td>顶部边框大小</td></tr>
+<tr><td>rightbordersize</td><td>INT</td><td>0</td><td>右边边框大小</td></tr>
+<tr><td>bottombordersize</td><td>INT</td><td>0</td><td>底部边框大小</td></tr>
+<tr><td>borderstyle</td><td>INT</td><td>0</td><td>边框样式，数值范围0~5</td></tr>
+<tr><td>borderround</td><td>SIZE</td><td>0,0</td><td>边框圆角半径，如(2,2)</td></tr>
+<tr><td>bkimage</td><td>STRING</td><td>""</td><td>背景图片</td></tr>
+<tr><td>width</td><td>INT</td><td>0</td><td>宽度</td></tr>
+<tr><td>height</td><td>INT</td><td>0</td><td>高度</td></tr>
+<tr><td>minwidth</td><td>INT</td><td>0</td><td>最小宽度</td></tr>
+<tr><td>minheight</td><td>INT</td><td>0</td><td>最小高度</td></tr>
+<tr><td>maxwidth</td><td>INT</td><td>0</td><td>最大宽度</td></tr>
+<tr><td>maxheight</td><td>INT</td><td>0</td><td>最大高度</td></tr>
+<tr><td>text</td><td>STRING</td><td>""</td><td>显示的文本</td></tr>
+<tr><td>tooltip</td><td>STRING</td><td>""</td><td>鼠标悬停提示文本</td></tr>
+<tr><td>enabled</td><td>BOOL</td><td>true</td><td>是否响应用户操作</td></tr>
+<tr><td>mouse</td><td>BOOL</td><td>true</td><td>是否响应鼠标操作</td></tr>
+<tr><td>visible</td><td>BOOL</td><td>true</td><td>是否可见</td></tr>
+<tr><td>float</td><td>BOOL</td><td>false</td><td>是否使用绝对定位</td></tr>
+</tbody></table>
+</div>
+<h2 id="参考链接-6"><a class="header" href="#参考链接-6">参考链接</a></h2>
+<ul>
+<li><a href="https://github.com/leeqia/nsNiuniuSkin">nsNiuniuSkin github</a></li>
+<li><a href="http://ggniu.cn/articles/nsniuniuskin.html">分享一个使用 NSIS 制作安装包的 UI 插件</a></li>
+<li><a href="http://www.leeqia.com/nsniuniuskin/download/">nsNiuniuSkin download</a></li>
+<li><a href="https://blog.csdn.net/qq_43915356/article/details/130813351">nsNiuniuSkin 使用教程</a></li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="搭建-ts-开发环境"><a class="header" href="#搭建-ts-开发环境">搭建 ts 开发环境</a></h1>
+<ul>
+<li>首先在 node 环境中搭建开发环境 （node 环境方便演示）</li>
+</ul>
+<pre><code class="language-bash">npm i -g typescript
+</code></pre>
+<ul>
+<li>
+<p>默认情况下， ts 会做出下面几种假设：</p>
+<ul>
+<li>假设当前执行环境是 dom</li>
+<li>如果代码中没有使用模块化语句（import export），便认为该代码是全局执行的</li>
+<li>编译目标代码是 es3 版本（保持最大兼容性）</li>
+</ul>
+</li>
+<li>
+<p>有两种方式更改以上假设：</p>
+<ul>
+<li>使用 tsc 命令行时加上选项参数</li>
+<li>使用 ts 配置文件更改编译选项</li>
+</ul>
+</li>
+</ul>
+<h2 id="ts-配置文件"><a class="header" href="#ts-配置文件">ts 配置文件</a></h2>
+<pre><code class="language-bash">tsc --init
+</code></pre>
+<ul>
+<li>使用了配置文件后，使用 tsc 编译时，不能后写文件名（比如 tsc index.ts），这样会忽略配置文件</li>
+<li>node 环境需要安装 <code>@types/node</code>。@types 是 ts 官方的类型库，包含很多 js 代码的类型描述</li>
+</ul>
+<h2 id="使用第三方库简化流程"><a class="header" href="#使用第三方库简化流程">使用第三方库简化流程</a></h2>
+<ul>
+<li>ts-node 将 ts 代码在内存中编译并运行</li>
+<li>nodemon 监测文件变化</li>
+</ul>
+<pre><code class="language-bash">nodemon --exec ts-node src/index.ts
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="基础"><a class="header" href="#基础">基础</a></h1>
+<h2 id="如何进行类型约束"><a class="header" href="#如何进行类型约束">如何进行类型约束</a></h2>
+<ul>
+<li>可以约束变量，函数参数，函数返回值</li>
+</ul>
+<pre><code class="language-ts">let name: string;
+name = 'haha';
+
+function sum(a: number, b: number): number {
+  return a + b;
+}
+</code></pre>
+<ul>
+<li>ts 可以在很多场景完成类型推导</li>
+</ul>
+<pre><code class="language-ts">// ts 会自动推导出 sum 的返回值是 number 类型
+function sum(a: number, b: number) {
+  return a + b;
+}
+</code></pre>
+<ul>
+<li>any 表示任意类型，ts 对该类型不做检查</li>
+</ul>
+<h2 id="源代码和编译结果的差异"><a class="header" href="#源代码和编译结果的差异">源代码和编译结果的差异</a></h2>
+<p>编译结果中没有类型约束信息</p>
+<h2 id="基本类型"><a class="header" href="#基本类型">基本类型</a></h2>
+<ul>
+<li>number</li>
+<li>string</li>
+<li>boolean</li>
+<li>数组</li>
+<li>对象</li>
+<li>null undefined 是其他所有类型的子类型，可以赋值给其他类型</li>
+</ul>
+<pre><code class="language-ts">let num: number;
+let name: string;
+let isOdd: boolean;
+let nums: number[];
+let nums: Array&lt;number&gt;;
+let obj: object;
+
+let n: string = null;
+let n: string = undefined;
+</code></pre>
+<p><code>undefined</code> 可以赋值给其他类型造成的问题可以在配置文件中加上 <code>strictNullChecks</code> 来避免</p>
+<pre><code class="language-json">{
+  // Visit https://aka.ms/tsconfig to read more about this file
+  "compilerOptions": {
+    // 编译选项
+    "target": "es2024", // 配置编译目标代码的版本
+    "module": "commonjs", // 配置编译目标使用的模块化标准
+    "lib": ["ES2024"], // 编译过程中需要引入的库文件
+    "outDir": "./dist", // 编译结果目录
+    "strictNullChecks": true // 更加严格的空值检测
+  },
+  "include": ["./src"] // 编译哪些目录下的 ts 文件
+}
+</code></pre>
+<h2 id="其他常用类型"><a class="header" href="#其他常用类型">其他常用类型</a></h2>
+<ul>
+<li>联合类型 多种类型任选其一。配合类型保护进行判断，类型判断：当对某个变量进行类型判断后，在判断的语句块中便可以确定它的确切类型</li>
+<li>void 类型 通常用于约束函数的返回值，表示函数没有任何返回值</li>
+<li>never 类型 通常用于约束函数的返回值，表示函数永远不可能结束</li>
+<li>字面量类型 使用一个值进行约束</li>
+<li>元组类型 Tuple 一个固定长度数组，并且数组中每一项类型确定</li>
+<li>any 类型 可以绕过类型检查，any 类型数据可以赋值给任意类型</li>
+</ul>
+<pre><code class="language-ts">let name: string | undefined = undefined;
+function some(): void {}
+function throwError(msg: string): never {
+  // 永远不会结束的函数
+  throw new Error(msg);
+}
+function alwaysDoSomething(): never {
+  // 永远不会结束的函数
+  while (true) {}
+}
+let a: 'A';
+let gender: '男' | '女';
+let arr: [string, number]; // 元组类型，固定长度数组
+let n: any = 1;
+let s: string = '';
+s = n;
+</code></pre>
+<h2 id="类型别名"><a class="header" href="#类型别名">类型别名</a></h2>
+<ul>
+<li>类型别名 对已知的类型定义名称</li>
+</ul>
+<pre><code class="language-ts">type 类型名 = 类型;
+type Gender = '男' | '女';
+type User = {
+  name: string;
+  age: number;
+  gender: Gender;
+};
+</code></pre>
+<h2 id="函数相关约束"><a class="header" href="#函数相关约束">函数相关约束</a></h2>
+<ul>
+<li>函数重载：在函数实现之前，对函数调用的多种情况进行声明</li>
+</ul>
+<pre><code class="language-ts">function combine(a: number, b: number): number;
+function combine(a: string, b: string): string;
+function combine(a: number | string, b: number | string): string | number {
+  if (typeof a === 'number' &amp;&amp; typeof b === 'number') {
+    return a * b;
+  } else if (typeof a === 'string' &amp;&amp; typeof b === 'string') {
+    return a + b;
+  }
+  throw new Error('a and b must be same type');
+}
+</code></pre>
+<ul>
+<li>可选参数：在某些参数名后加上问号，表示该参数可以不用传递，可选参数必须出现在参数列表的末尾</li>
+</ul>
+<pre><code class="language-ts">function sum(a: number, b: number, c?: number) {
+  if (c) {
+    return a + b + c;
+  } else {
+    return a + b;
+  }
+}
+function sum(a: number, b: number, c: number = 0) {
+  if (c) {
+    return a + b + c;
+  } else {
+    return a + b;
+  }
+}
+</code></pre>
+<h2 id="扑克牌小练习"><a class="header" href="#扑克牌小练习">扑克牌小练习</a></h2>
+<ul>
+<li>目标，创建一副扑克牌（不包括大小王），打印该扑克牌</li>
+</ul>
+<pre><code class="language-ts">type Deck = NormalCard[];
+type Color = '♥' | '♠' | '♦' | '♣';
+type NormalCard = {
+  color: '♥' | '♠' | '♦' | '♣';
+  mark: number;
+};
+
+function createDeck(): Deck {
+  const deck: Deck = [];
+  for (let i = 1; i &lt;= 13; i++) {
+    deck.push({
+      mark: i,
+      color: '♠',
+    });
+    deck.push({
+      mark: i,
+      color: '♣',
+    });
+    deck.push({
+      mark: i,
+      color: '♥',
+    });
+    deck.push({
+      mark: i,
+      color: '♦',
+    });
+  }
+  return deck;
+}
+
+function printDeck(deck: Deck) {
+  let result = '\n';
+  deck.forEach((card, i) =&gt; {
+    let str = card.color;
+    if (card.mark &lt;= 10) {
+      str += card.mark;
+    } else if (card.mark === 11) {
+      str += 'J';
+    } else if (card.mark === 12) {
+      str += 'Q';
+    } else {
+      str += 'K';
+    }
+    result += str + '\t';
+    if ((i + 1) % 6 === 0) {
+      result += '\n';
+    }
+  });
+  console.log(result);
+}
+
+const deck = createDeck();
+printDeck(deck);
+</code></pre>
+<h2 id="扩展类型枚举"><a class="header" href="#扩展类型枚举">扩展类型：枚举</a></h2>
+<ul>
+<li>枚举通常用于某个变量的取值范围。字面量和联合类型配合也可以达到同样的目标</li>
+<li>字面量类型的问题：
+<ul>
+<li>在类型约束位置，会产生重复代码，使用类型别名可以解决该问题</li>
+<li>逻辑含义和真实的值产生混淆，会导致修改真实值的时候，会产生大量修改</li>
+<li>字面量类型不会进入编译结果</li>
+</ul>
+</li>
+</ul>
+<pre><code class="language-ts">// enum 枚举名 {
+//   枚举字段 = 值,
+// }
+
+enum Gender {
+  male = '男',
+  female = '女',
+}
+
+let gender: Gender;
+
+gender = Gender.male;
+</code></pre>
+<ul>
+<li>
+<p>如果要修改枚举的值，甚至修改枚举的字段名，都可以只修改一处，不用修改代码里所有使用到的地方（修改字段名按 F2 就会出现输入框可以修改一处，其他地方自动修改）</p>
+</li>
+<li>
+<p>枚举会出现在编译结果中，编译成对象</p>
+</li>
+<li>
+<p>枚举的字段值可以用字符串或数字</p>
+</li>
+<li>
+<p>数字枚举的值会自动自增，不定义就从 0 开始</p>
+</li>
+<li>
+<p>被数字枚举约束的变量，可以直接赋值为数字 （不建议）</p>
+</li>
+<li>
+<p>数字枚举的编译结果和字符串枚举有差异</p>
+</li>
+<li>
+<p>最佳实践</p>
+<ul>
+<li>不要在枚举中既出现字符串值也出现数字值</li>
+<li>使用枚举，尽量使用枚举字段的名称，不要使用真实值</li>
+</ul>
+</li>
+</ul>
+<p>下面使用枚举修改之前的扑克牌代码：</p>
+<pre><code class="language-ts">type Deck = NormalCard[];
+enum Color {
+  heart = '♥',
+  spade = '♠',
+  club = '♣',
+  diamond = '♦',
+}
+enum Mark {
+  A = 'A',
+  two = '2',
+  three = '3',
+  four = '4',
+  five = '5',
+  six = '6',
+  seven = '7',
+  eight = '8',
+  nine = '9',
+  ten = '10',
+  jack = 'J',
+  queen = 'Q',
+  king = 'K',
+}
+type NormalCard = {
+  color: '♥' | '♠' | '♦' | '♣';
+  mark: Mark;
+};
+
+function createDeck(): Deck {
+  const deck: Deck = [];
+  const marks = Object.values(Mark);
+  const colors = Object.values(Color);
+
+  for (const m of marks) {
+    for (const c of colors) {
+      deck.push({
+        color: c,
+        mark: m,
+      });
+    }
+  }
+  return deck;
+}
+
+function printDeck(deck: Deck) {
+  let result = '\n';
+  deck.forEach((card, i) =&gt; {
+    let str = card.color + card.mark;
+    result += str + '\t';
+    if ((i + 1) % 6 === 0) {
+      result += '\n';
+    }
+  });
+  console.log(result);
+}
+
+const deck = createDeck();
+printDeck(deck);
+</code></pre>
+<h2 id="模块化-1"><a class="header" href="#模块化-1">模块化</a></h2>
+<ul>
+<li>ts config 模块化相关配置</li>
+</ul>
+<div class="table-wrapper"><table><thead><tr><th>配置名称</th><th>含义</th></tr></thead><tbody>
+<tr><td>module</td><td>设置编译结果中使用的模块化标准</td></tr>
+<tr><td>moduleResolution</td><td>设置解析模块的模式</td></tr>
+<tr><td>removeComments</td><td>编译结果移除注释</td></tr>
+<tr><td>noEmitOnError</td><td>错误时不生成编译结果</td></tr>
+<tr><td>esModuleInterop</td><td>启用 es 模块化交互非 es 模块导出</td></tr>
+</tbody></table>
+</div>
+<ul>
+<li>
+<p>前端模块化标准： esm commonjs amd umd system esnext</p>
+</li>
+<li>
+<p>主要关注两个：</p>
+<ul>
+<li>ts 中如何书写模块化语句</li>
+<li>编译结果是什么模块标准</li>
+</ul>
+</li>
+<li>
+<p>ts 中导入和导出模块统一使用 esm 模块系统</p>
+</li>
+<li>
+<p>编译结果使用什么模块标准是可以配置的，修改 tsconfig.json 中的 compilerOptions.module 即可</p>
+</li>
+<li>
+<p>如果 module 设置为 esm，编译结果和 ts 代码没有区别</p>
+</li>
+<li>
+<p>如果 module 设置为 commonjs ，导出的声明变成 exports 的属性，默认导出变成 exports.default 属性</p>
+</li>
+</ul>
+<pre><code class="language-ts">// index.ts
+export const name = 'kevin';
+
+export function sum(a: number, b: number): number {
+  return a + b;
+}
+
+// test.ts
+import { name, sum } from './index';
+
+console.log(name);
+console.log(sum(1, 2));
+</code></pre>
+<pre><code class="language-js">// index.js
+'use strict';
+Object.defineProperty(exports, '__esModule', { value: true });
+exports.name = void 0;
+exports.sum = sum;
+exports.name = 'kevin';
+function sum(a, b) {
+  return a + b;
+}
+
+// test.js
+('use strict');
+Object.defineProperty(exports, '__esModule', { value: true });
+const index_1 = require('./index');
+console.log(index_1.name);
+console.log((0, index_1.sum)(1, 2));
+</code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="eslint代码规范"><a class="header" href="#eslint代码规范">ESLint代码规范</a></h1>
 <h2 id="基础使用-1"><a class="header" href="#基础使用-1">基础使用</a></h2>
 <p>ESLint 是一个用来检查代码错误的工具。</p>

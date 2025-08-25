@@ -585,7 +585,14 @@ module.exports = async context =&gt; {
   }
 }
 </code></pre>
+<ul>
+<li>
 <p>这里需要注意的是，在 windows 下，文本的换行符是 <code>\r\n</code> 所以需要拼接换行符字符串，否则子进程执行批处理脚本会失败，然后 windows 下字符编码多是 'gbk' 编码，需要转换成 <code>gbk</code> 编码，否则一旦路径中出现中文字符，脚本也会失败，最后通过子进程的 <code>spawn</code> 的参数 <code>detached</code> 设置为 <code>true</code>，使得子进程与父进程分离开独立运行（父进程退出不会导致子进程也退出），<code>shell</code>设置为 <code>true</code>，因为在 <code>shell</code> 中运行脚本才能支持很多丰富的语法，<code>windowsHide</code> 隐藏子进程打开的命令行窗口，stdio 设置子进程的输入，输出，和错误信息组成的数组，忽略掉输入，将子进程的输出和错误信息写入本地硬盘文件，方便调试。最后调用 <code>child.unref()</code>，通常父进程会等待子进程退出，调用 <code>child.unref()</code> 后父进程不再等待子进程，会提前退出</p>
+</li>
+<li>
+<p>这里需要注意，项目路径或者说批处理文件的路径中不要有特殊符号，比如括号之类的符号，否则子进程 spawn 方法也会调用失败</p>
+</li>
+</ul>
 <h2 id="参考链接"><a class="header" href="#参考链接">参考链接</a></h2>
 <ul>
 <li><a href="https://nodejs.org/docs/latest/api/child_process.html#child_processspawncommand-args-options">child_process.spawn(command[, args][, options])</a></li>

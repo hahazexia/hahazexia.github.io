@@ -32,34 +32,21 @@
         <!-- Custom theme stylesheets -->
 
 
-        <!-- Provide site root and default themes to javascript -->
+        <!-- Provide site root to javascript -->
         <script>
-            const path_to_root = "";
-            const default_light_theme = "light";
-            const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex.js";
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc.js"></script>
     </head>
     <body>
-    <div id="mdbook-help-container">
-        <div id="mdbook-help-popup">
-            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
-            <div>
-                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
-                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
-                <p>Press <kbd>?</kbd> to show this help</p>
-                <p>Press <kbd>Esc</kbd> to hide this help</p>
-            </div>
-        </div>
-    </div>
     <div id="body-container">
         <!-- Work around some values being stored in localStorage wrapped in quotes -->
         <script>
             try {
-                let theme = localStorage.getItem('mdbook-theme');
-                let sidebar = localStorage.getItem('mdbook-sidebar');
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
 
                 if (theme.startsWith('"') && theme.endsWith('"')) {
                     localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
@@ -73,8 +60,7 @@
 
         <!-- Set the theme before any content is loaded, prevents flash -->
         <script>
-            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
-            let theme;
+            var theme;
             try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
             if (theme === null || theme === undefined) { theme = default_theme; }
             const html = document.documentElement;
@@ -87,20 +73,17 @@
 
         <!-- Hide / unhide sidebar before it is displayed -->
         <script>
-            let sidebar = null;
-            const sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            var sidebar = null;
+            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
             if (document.body.clientWidth >= 1080) {
                 try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
                 sidebar = sidebar || 'visible';
             } else {
                 sidebar = 'hidden';
-                sidebar_toggle.checked = false;
             }
-            if (sidebar === 'visible') {
-                sidebar_toggle.checked = true;
-            } else {
-                html.classList.remove('sidebar-visible');
-            }
+            sidebar_toggle.checked = sidebar === 'visible';
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
         </script>
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
@@ -127,14 +110,13 @@
                             <i class="fa fa-paint-brush"></i>
                         </button>
                         <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
-                            <li role="none"><button role="menuitem" class="theme" id="default_theme">Auto</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
                         </ul>
-                        <button id="search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="searchbar">
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
                             <i class="fa fa-search"></i>
                         </button>
                     </div>
@@ -151,12 +133,7 @@
 
                 <div id="search-wrapper" class="hidden">
                     <form id="searchbar-outer" class="searchbar-outer">
-                        <div class="search-wrapper">
-                            <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
-                            <div class="spinner-wrapper">
-                                <i class="fa fa-spinner fa-spin"></i>
-                            </div>
-                        </div>
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
                     </form>
                     <div id="searchresults-outer" class="searchresults-outer hidden">
                         <div id="searchresults-header" class="searchresults-header"></div>
@@ -28757,6 +28734,237 @@ FunctionEnd
 <li><a href="http://www.leeqia.com/nsniuniuskin/download/">nsNiuniuSkin download</a></li>
 <li><a href="https://blog.csdn.net/qq_43915356/article/details/130813351">nsNiuniuSkin 使用教程</a></li>
 </ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="解决自定义-nsis-安装包带来的全量升级问题"><a class="header" href="#解决自定义-nsis-安装包带来的全量升级问题">解决自定义 nsis 安装包带来的全量升级问题</a></h1>
+<ul>
+<li>
+<p>之前依赖 <code>electron-builder</code> 和 <code>electron-updater</code> 的升级，会因为使用了自定义 nsis 安装包而失败</p>
+<ul>
+<li>因为 <code>electron-updater</code> 的升级是依赖其根据 <code>electron-builder</code> 自己生成的 nsis 安装包计算出来的文件哈希值，所以 latest.yml 文件中的哈希值就和自定义 nsis 包不匹配了，因此会导致检测升级失败</li>
+</ul>
+</li>
+<li>
+<p>解决方案就是自己重新计算自定义 nsis 包的哈希值，然后重新生成 latest.yml 文件</p>
+</li>
+</ul>
+<h2 id="步骤"><a class="header" href="#步骤">步骤</a></h2>
+<ul>
+<li>
+<p>去扒 <code>electron-builder</code> 的源码 <code>packages\electron-updater\src\DownloadedUpdateHelper.ts</code> 文件中有这样一段代码，这其实就是 <code>electron-builder</code> 内部计算安装包文件哈希值的方法</p>
+<pre><code class="language-ts">import { createHash } from 'crypto';
+import { createReadStream } from 'fs';
+
+/**
+ * 计算文件的哈希值（异步函数）
+ * @param file 要计算哈希值的文件路径
+ * @param algorithm 哈希算法，默认为 'sha512'
+ * @param encoding 输出结果的编码格式，支持 'base64' 或 'hex'，默认为 'base64'
+ * @param options 传递给文件读取流的可选参数
+ * @returns 返回包含哈希值的Promise对象
+ */
+function hashFile(
+  file: string,
+  algorithm = 'sha512',
+  encoding: 'base64' | 'hex' = 'base64',
+  options?: any
+): Promise&lt;string&gt; {
+  // 返回Promise对象以支持异步操作
+  return new Promise&lt;string&gt;((resolve, reject) =&gt; {
+    // 使用指定的算法创建哈希对象
+    const hash = createHash(algorithm);
+
+    // 监听哈希过程中的错误，并将错误传递给reject
+    // 同时设置哈希结果的输出编码格式
+    hash.on('error', reject).setEncoding(encoding);
+
+    // 创建文件读取流，以流的方式处理文件（适合大文件）
+    createReadStream(file, {
+      // 合并用户传入的选项
+      ...options,
+      // 设置每次读取的缓冲区大小为1MB（1024*1024字节）
+      // 较大的缓冲区可以提高处理速度，减少I/O操作次数
+      highWaterMark:
+        1024 * 1024 /* better to use more memory but hash faster */,
+    })
+      // 监听文件读取过程中的错误
+      .on('error', reject)
+      // 当文件读取完成时触发
+      .on('end', () =&gt; {
+        // 结束哈希计算
+        hash.end();
+        // 读取哈希结果并通过resolve返回
+        resolve(hash.read() as string);
+      })
+      // 将文件流通过管道传递给哈希对象进行处理
+      // { end: false } 表示文件流结束时不自动结束哈希计算，需要手动调用hash.end()
+      .pipe(hash, { end: false });
+  });
+}
+</code></pre>
+</li>
+<li>
+<p>解决了核心问题哈希值的计算 ，现在我们就可以来写一个一键脚本的流程来制作打包的流程</p>
+<ol>
+<li>获取 package.json 中的 version，修改自定义 nsis 脚本中的版本号为 version</li>
+<li>编译主进程和渲染进程代码，然后启动 <code>electron-builder</code> 打包</li>
+<li><code>win-unpacked</code> 生成成功，触发 <code>afterPack</code> 钩子函数，执行 <code>afterPack</code> 脚本，复制 <code>win-unpacked</code> 文件夹中的文件到 <code>FilesToInstall</code> 中，然后启动一个子进程，执行批处理脚本开始做自定义 nsis 打包</li>
+<li>自定义 nsis 打包成功后，使用 hashFile 方法计算新的安装包的哈希值，并生成对应的 <code>latest.yml</code> 的文件</li>
+</ol>
+</li>
+<li>
+<p>下面是 <code>beforePack.cjs</code>，作用是修改 nsis 中的版本号</p>
+<pre><code class="language-js">const fs = require('fs');
+const path = require('path');
+
+function updateNsiVersion(nsiFilePath, newVersion, pkgVersion) {
+  try {
+    const fileContentBuffer = fs.readFileSync(nsiFilePath);
+    let fileContent = fileContentBuffer.toString('utf16le');
+    const versionRegex = /(!define PRODUCT_VERSION\s+)"[^"]+"/;
+    const productVersionRegex = /(!define PRODUCT_SHOW_VERSION\s+)"[^"]+"/;
+    const updatedContent = fileContent
+      .replace(versionRegex, `$1"${newVersion}"`)
+      .replace(productVersionRegex, `$1"${pkgVersion}"`);
+    const contentBuffer = Buffer.from(updatedContent, 'utf16le');
+    fs.writeFileSync(nsiFilePath, contentBuffer);
+    console.log(
+      `  • nsi version updated successfully! New version: ${newVersion}`
+    );
+  } catch (error) {
+    console.error(`Failed to update version: ${error.message}`);
+    process.exit(1);
+  }
+}
+
+const packageJsonPath = path.join(__dirname, '../package.json');
+const packageInfo = require(packageJsonPath);
+const appName = packageInfo.name;
+const version = packageInfo.version;
+
+const nsiFile = path.resolve(
+  __dirname,
+  '../nsis_publish/SetupScripts/nim/nim_setup.nsi'
+);
+const targetVersion = `${version}.0`;
+console.log(`  • targetVersion ${targetVersion}`);
+
+updateNsiVersion(nsiFile, targetVersion, version);
+</code></pre>
+</li>
+<li>
+<p>下面是 <code>afterPack.cjs</code> 文件，用于 <code>afterPack</code> 钩子触发后启动子进程调起批处理脚本</p>
+<pre><code class="language-js">const fsSync = require('fs');
+const path = require('path');
+const child = require('child_process');
+const fs = require('fs-extra');
+const afterAllArtifactBuild = require('./afterAllArtifactBuild.cjs');
+const {
+  copyDirectory,
+  moveToDirectory,
+  getExeFilePaths,
+  sortFilesByVersion,
+} = require('./utils.cjs');
+
+module.exports = async () =&gt; {
+  const source = path.join(__dirname, '../out/win-unpacked');
+  const dest = path.join(__dirname, '../nsis_publish/FilesToInstall');
+  await copyDirectory(source, dest);
+  console.log(`  • copy win-unpacked dir successful: ${source} -&gt; ${dest}`);
+
+  const out = fsSync.openSync(path.join(__dirname, '../out.log'), 'a');
+  const err = fsSync.openSync(path.join(__dirname, '../out.log'), 'a');
+  const batPath = path.join(__dirname, '../nsis_publish/build-nim.bat');
+
+  const batDir = path.dirname(batPath);
+
+  const ch = child.spawn(batPath, [], {
+    detached: true,
+    shell: true,
+    stdio: ['ignore', out, err],
+    cwd: batDir,
+  });
+
+  ch.on('exit', async code =&gt; {
+    console.log(`  • child process exit，code: ${code}`);
+
+    const dest = path.join(__dirname, '../out');
+    const targetDir = path.join(__dirname, '../nsis_publish/Output/');
+    const exefiles = await getExeFilePaths(targetDir);
+    const sortfiles = sortFilesByVersion(exefiles, false);
+
+    try {
+      await moveToDirectory(sortfiles[0], dest);
+      (async () =&gt; {
+        await new Promise(resolve =&gt; setTimeout(resolve, 2000));
+      })();
+
+      console.log('  • move final installer file successful');
+      afterAllArtifactBuild();
+    } catch (err) {
+      console.log(`  • move final installer file error: ${err.message}`);
+      throw err;
+    }
+  });
+
+  ch.on('error', err =&gt; {
+    console.error('  • child process failed:', err);
+  });
+};
+</code></pre>
+</li>
+<li>
+<p>下面是 <code>afterAllArtifactBuild.cjs</code> 用于计算新安装包文件的哈希值并生成 <code>latest.yml</code> 文件</p>
+<pre><code class="language-js">const { statSync, writeFileSync } = require('node:fs');
+const path = require('path');
+const { hashFile } = require('./utils.cjs');
+
+module.exports = async () =&gt; {
+  const packageJsonPath = path.join(__dirname, '../package.json');
+  const packageInfo = require(packageJsonPath);
+  const appName = packageInfo.name;
+  const version = packageInfo.version;
+  const installerName = `${appName}_V${version}.exe`;
+
+  const installerPath = path.join(__dirname, `../out/${installerName}`);
+
+  const hash = await hashFile(installerPath, undefined, undefined, {
+    highWaterMark: 1024 * 1024 * 10,
+  });
+
+  const fileStats = statSync(installerPath);
+  const fileSize = fileStats.size;
+
+  const releaseDate = new Date().toISOString();
+
+  const yamlContent = [
+    `version: ${version}`,
+    `files:`,
+    `  - url: ${installerName}`,
+    `    sha512: ${hash}`,
+    `    size: ${fileSize}`,
+    `path: ${installerName}`,
+    `sha512: ${hash}`,
+    `releaseDate: '${releaseDate}'`,
+  ].join('\n');
+
+  const ymlFilePath = path.join(__dirname, '../out/latest.yml');
+  writeFileSync(ymlFilePath, yamlContent, 'utf8');
+
+  console.log(`  • Successfully generated ${ymlFilePath}`);
+  console.log(`  • Version: ${version}`);
+  console.log(`  • Installer: ${installerName}`);
+  console.log(`  • File size: ${fileSize} bytes`);
+};
+</code></pre>
+</li>
+<li>
+<p>至此，我们就解决了自定义 nsis 打包带来的全量升级失效的问题</p>
+</li>
+</ul>
+<h2 id="参考链接-7"><a class="header" href="#参考链接-7">参考链接</a></h2>
+<ul>
+<li><a href="https://github1s.com/electron-userland/electron-builder/blob/master/packages/electron-updater/src/DownloadedUpdateHelper.ts">electron-updater DownloadedUpdateHelper.ts hashFile 方法所在的源码文件</a></li>
+<li><a href="https://nodejs.org/docs/latest/api/crypto.html#cryptocreatehashalgorithm-options">nodejs crypto.createHash(algorithm[, options])</a></li>
+</ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="集成日志"><a class="header" href="#集成日志">集成日志</a></h1>
 <p>主进程一般需要记录日志，方便查错。这里选用 <code>electron-log</code> 这个库。<code>electron-log</code> 官方没有提供日志滚动的功能，需要通过 <code>archiveLogFn</code> 自己实现</p>
 <pre><code class="language-ts">import { app } from 'electron';
@@ -28853,10 +29061,521 @@ function initLogger(): any {
 export default initLogger();
 
 </code></pre>
-<h2 id="参考链接-7"><a class="header" href="#参考链接-7">参考链接</a></h2>
+<h2 id="参考链接-8"><a class="header" href="#参考链接-8">参考链接</a></h2>
 <ul>
 <li><a href="https://www.npmjs.com/package/electron-log">electron-log</a></li>
 <li><a href="https://github.com/megahertz/electron-log/blob/46a6de343c8b691714025a994420d6d3aeafa1f7/docs/transports/file.md#archivelogfn-oldlogfile-logfile--void">archiveLogFn</a></li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="集成-sqlite-数据库"><a class="header" href="#集成-sqlite-数据库">集成 sqlite 数据库</a></h1>
+<ul>
+<li>桌面应用很多情况都要用到数据库来管理数据，这里使用嵌入式数据库 <code>sqlite</code></li>
+</ul>
+<div class="table-wrapper"><table><thead><tr><th>核心优点</th><th>详细说明</th></tr></thead><tbody>
+<tr><td>轻量级，零配置</td><td>1. 嵌入式数据库，无需独立安装服务器进程，仅需一个动态库（.dll/.so）即可运行，随软件打包分发；<br>2. 数据库以单一文件（.db/.sqlite）存在，便于管理、备份和迁移（直接复制文件即可）。</td></tr>
+<tr><td>跨平台兼容性</td><td>支持 Windows、macOS、Linux 等主流桌面系统，数据库文件格式在不同平台间通用，无跨系统数据兼容问题。</td></tr>
+<tr><td>低资源占用</td><td>内存和 CPU 消耗极低，适合硬件配置有限的设备（如老旧电脑、嵌入式设备），不影响桌面软件运行性能。</td></tr>
+<tr><td>ACID 事务支持</td><td>具备完整的事务特性（原子性、一致性、隔离性、持久性），避免意外断电或崩溃导致的数据损坏，保障数据操作安全。</td></tr>
+<tr><td>无需网络依赖</td><td>数据存储在本地，读写无需网络，适合离线使用场景，且本地访问速度远快于远程数据库。</td></tr>
+<tr><td>开源免费</td><td>遵循 Public Domain 协议，可免费用于商业软件，无需支付授权费用，显著降低开发成本。</td></tr>
+<tr><td>丰富的编程语言支持</td><td>兼容几乎所有主流编程语言（C/C++、Python、Java、C#、Node.js 等），均有成熟驱动，集成难度低。</td></tr>
+</tbody></table>
+</div>
+<ul>
+<li>ndoejs 的 <a href="https://www.npmjs.com/package/sqlite3">sqlite3</a> 这个包已经渐渐不维护了，所以这里选用 <a href="https://www.npmjs.com/package/better-sqlite3">better-sqlite3</a> 这个包</li>
+</ul>
+<h2 id="安装和编译"><a class="header" href="#安装和编译">安装和编译</a></h2>
+<ul>
+<li>
+<p>首先安装 <code>better-sqlite3</code></p>
+<pre><code class="language-bash">  npm i better-sqlite3
+</code></pre>
+</li>
+<li>
+<p>这里需要注意 <code>better-sqlite3</code> 是 <code>C/C++</code> 编写的原生 <code>Node</code> 模块，而 <code>Electron</code> 虽基于 <code>Node.js</code>，但使用独立的 <code>V8</code> 引擎和 <code>Node.js</code> 二进制接口（ABI），与系统 <code>Node</code> 环境不兼容，直接安装的 <code>better-sqlite3</code> 是针对系统 <code>Node</code> 编译的，无法在 <code>Electron</code> 中运行，会发生下面的错误信息：</p>
+<pre><code class="language-bash">  [2025-08-25 11:41:44.059] [error] {
+  errorSummary: 'db initialize failed',
+  message: "The module '\\\\?\\D:\\project\\work\\electron-build-update-demo\\node_modules\\sqlite\\build\\Release\\better_sqlite3.node'\n" +
+    'was compiled against a different Node.js version using\n' +
+    'NODE_MODULE_VERSION 127. This version of Node.js requires\n' +
+    'NODE_MODULE_VERSION 136. Please try re-compiling or re-installing\n' +
+    'the module (for instance, using `npm rebuild` or `npm install`).',
+  code: 'ERR_DLOPEN_FAILED',
+  stack: "Error: The module '\\\\?\\D:\\project\\work\\electron-build-update-demo\\node_modules\\sqlite\\build\\Release\\better_sqlite3.node'\n" +
+    'was compiled against a different Node.js version using\n' +
+    'NODE_MODULE_VERSION 127. This version of Node.js requires\n' +
+    'NODE_MODULE_VERSION 136. Please try re-compiling or re-installing\n' +
+    'the module (for instance, using `npm rebuild` or `npm install`).\n' +
+    '    at process.func [as dlopen] (node:electron/js2c/node_init:2:2617)\n' +
+    '    at Module._extensions..node (node:internal/modules/cjs/loader:1930:18)\n' +
+    '    at Object.func [as .node] (node:electron/js2c/node_init:2:2617)\n' +
+    '    at Module.load (node:internal/modules/cjs/loader:1472:32)\n' +
+    '    at Module._load (node:internal/modules/cjs/loader:1289:12)\n' +
+    '    at c._load (node:electron/js2c/node_init:2:18013)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:242:24)\n' +
+    '    at Module.require (node:internal/modules/cjs/loader:1494:12)\n' +
+    '    at require (node:internal/modules/helpers:135:16)'
+</code></pre>
+<p>所以需要在 <code>package.json</code> 中加入 <code>"rebuild": "electron-rebuild -f -w better-sqlite3"</code> 这条命令，用 <a href="https://www.npmjs.com/package/@electron/rebuild">@electron/rebuild</a> 工具，针对当前 <code>Electron</code> 版本重新编译 <code>better-sqlite3</code>，使其适配 <code>Electron</code> 运行时；其中 <code>-f</code> 强制重建，<code>-w better-sqlite3</code> 指定仅编译该模块，最终解决原生模块的兼容性问题</p>
+</li>
+</ul>
+<h2 id="db-类和-orm-工具类"><a class="header" href="#db-类和-orm-工具类">DB 类和 orm 工具类</a></h2>
+<ul>
+<li>
+<p>本来想去集成类似 <a href="https://www.npmjs.com/package/typeorm">typrorm</a> 的 orm 工具库，但是最后决定自己实现 orm 类，因为像 <code>typeorm</code> 这样的库，兼容基本上所有常用数据库，并且它很难通过打包工具整体编译输出到最终一个 js 文件中，因为模块系统不兼容的问题，这样体积庞大的包会导致 asar 包变得非常大，之前测试包含了 <code>typeorm</code> 的 asar 包体积增到到了 27mb，因此放弃集成第三方的 orm，转而自己实现</p>
+</li>
+<li>
+<p>首先先封装 DB 数据库类</p>
+<pre><code class="language-ts">  import sqlite from 'better-sqlite3';
+  import { ConfigModel } from './entities/config.js';
+  import { app } from 'electron';
+  import path from 'node:path';
+  import fs from 'node:fs';
+  import { logErrorInfo } from './utils.js';
+  import { ModelInstance } from './orm.js';
+
+  type TableMap = {
+    configs: ModelInstance&lt;any&gt;;
+  };
+
+  export class DB {
+    dbPath: string; // 数据库文件地址
+    db: sqlite.Database; // 数据库对象
+    tables: Map&lt;keyof TableMap, ModelInstance&lt;any&gt;&gt; = new Map(); // Map 存储表对象
+
+    constructor(options: sqlite.Options) {
+      const dbPath = this.getDatabasePath();
+      const db = new sqlite(dbPath, { verbose: console.log, ...options });
+      this.db = db;
+      this.dbPath = dbPath;
+    }
+
+    // 初始化表
+    init(models: ModelInstance&lt;any&gt;[]) {
+      models.forEach((instance: ModelInstance&lt;any&gt;) =&gt; {
+        instance.createTable();
+        this.tables.set(instance.table as keyof TableMap, instance);
+      });
+    }
+    
+    // 获取表对象
+    getTable&lt;K extends keyof TableMap&gt;(name: K): ModelInstance&lt;any&gt; {
+      return this.tables.get(name) as ModelInstance&lt;any&gt;;
+    }
+
+    // 获取数据库文件地址
+    getDatabasePath(): string {
+      if (this.dbPath) {
+        return this.dbPath;
+      }
+      const userDataPath = app.getPath('userData');
+      const dbDir = path.join(userDataPath, 'database');
+
+      if (!fs.existsSync(dbDir)) {
+        fs.mkdirSync(dbDir, { recursive: true });
+      }
+
+      const dbPath = path.join(dbDir, 'app.db');
+      log.info(`dbPath: ${dbPath}`);
+
+      return dbPath;
+    }
+  }
+
+
+  let alreadyInitialized = false;
+
+  export function initializeDatabase(): null | DB {
+    if (alreadyInitialized) {
+      return global.db;
+    }
+    let db: DB;
+    try {
+      // 初始化数据库和表
+      db = new DB({ verbose: global.log.info });
+      db.init([new ConfigModel(db.db)]);
+    } catch (err) {
+      logErrorInfo('db initialize failed', err);
+      return null;
+    }
+    log.info(`db initialize successful`);
+    global.db = db;
+    alreadyInitialized = true;
+
+    return db;
+  }
+
+</code></pre>
+</li>
+<li>
+<p>然后再封装 orm 类</p>
+<pre><code class="language-ts">  import sqlite from 'better-sqlite3';
+
+  /**
+  * 支持的SQLite字段类型
+  * 映射SQLite原生数据类型，boolean类型在SQLite中实际存储为INTEGER(0/1)
+  */
+  type FieldType = 'integer' | 'text' | 'real' | 'boolean' | 'blob' | string;
+
+  /**
+  * 表字段配置选项接口
+  * 定义单个字段的类型和约束条件
+  */
+  interface FieldOptions {
+    type: FieldType;          // 字段数据类型
+    primary?: boolean;        // 是否为主键（默认false）
+    autoincrement?: boolean;  // 是否自增（仅主键有效，默认false）
+    notNull?: boolean;        // 是否非空（默认false）
+    unique?: boolean;         // 值是否唯一（默认false）
+    default?: any;            // 默认值，支持普通值或SQL函数({ raw: "SQL语句" })
+  }
+
+  /**
+  * 表结构定义类型
+  * 键为字段名，值为对应的字段配置
+  */
+  type Schema = Record&lt;string, FieldOptions&gt;;
+
+  /**
+  * Upsert操作配置选项
+  * 用于处理插入冲突时的更新逻辑
+  */
+  interface UpsertOptions {
+    conflictPaths: string[];  // 用于判断冲突的字段数组
+    skipUpdateIfNoValuesChanged: boolean; // 无更新内容时是否跳过操作
+  }
+
+  /**
+  * 从表结构中提取可插入/更新的数据类型
+  * 自动排除自增字段，根据字段类型映射对应的TypeScript类型
+  */
+  export type ExtractData&lt;T extends Schema&gt; = {
+    [K in keyof T as T[K]['autoincrement'] extends true
+    ? never
+    : K]: T[K]['type'] extends 'integer'
+    ? number
+    : T[K]['type'] extends 'text'
+    ? string
+    : T[K]['type'] extends 'real'
+    ? number
+    : T[K]['type'] extends 'boolean'
+    ? boolean
+    : any;
+  };
+
+  /**
+  * 包含自增ID的数据类型
+  * 所有查询和插入操作的返回结果都会包含id字段
+  */
+  export type DataWithId&lt;T&gt; = T &amp; { id: number };
+
+  /**
+  * ORM模型接口定义
+  * 规范所有数据表模型需要实现的核心方法
+  */
+  export type ModelInstance&lt;T extends Schema&gt; = {
+    readonly db: sqlite.Database;  // 数据库实例（只读）
+    table: string;                 // 表名
+    schema: Schema;                // 表结构定义
+    
+    createTable(): void;                                   // 创建数据表
+    insert(data: ExtractData&lt;T&gt;): DataWithId&lt;ExtractData&lt;T&gt;&gt;; // 插入数据
+    upsert(data: ExtractData&lt;T&gt;, options: UpsertOptions): DataWithId&lt;ExtractData&lt;T&gt;&gt;; // 插入或更新
+    update(id: number, data: Partial&lt;ExtractData&lt;T&gt;&gt;): boolean; // 更新数据
+    findOneBy(data: Partial&lt;ExtractData&lt;T&gt;&gt;): DataWithId&lt;ExtractData&lt;T&gt;&gt; | null; // 按条件查询单条
+    findAll(): DataWithId&lt;ExtractData&lt;T&gt;&gt;[]; // 查询所有数据
+    deleteOneBy(data: Partial&lt;ExtractData&lt;T&gt;&gt;): boolean; // 按条件删除单条
+    deleteAll(): number; // 删除所有数据
+    findExistingByConflictPaths(data: ExtractData&lt;T&gt;, conflictPaths: string[]): DataWithId&lt;ExtractData&lt;T&gt;&gt; | null; // 按冲突字段查询
+  };
+
+  /**
+  * SQLite ORM抽象基类
+  * 实现了ModelInstance接口的通用方法，子类只需定义表名和表结构即可使用
+  */
+  export abstract class TableModel&lt;T extends Schema&gt; implements ModelInstance&lt;T&gt; {
+    abstract table: string;  // 表名（子类必须定义）
+    abstract schema: Schema; // 表结构（子类必须定义）
+    public db: sqlite.Database; // 数据库实例
+
+    /**
+    * 构造函数
+    * @param db - better-sqlite3数据库实例
+    */
+    constructor(db: sqlite.Database) {
+      this.db = db;
+    }
+
+    /**
+    * 创建数据表
+    * 根据schema自动生成CREATE TABLE语句，表不存在时创建
+    * @throws 当表名或表结构未定义时抛出错误
+    */
+    createTable(): void {
+      const schema = this.schema;
+      const table = this.table;
+      
+      if (!schema || !table)
+        throw new Error('createTable: Schema or table name not defined');
+
+      const fields: string[] = [];
+      for (const [fieldName, options] of Object.entries(schema)) {
+        const parts: string[] = [
+          fieldName,
+          // SQLite没有boolean类型，自动转换为INTEGER
+          options.type === 'boolean' ? 'INTEGER' : options.type.toUpperCase(),
+        ];
+
+        // 添加字段约束
+        if (options.primary) parts.push('PRIMARY KEY');
+        if (options.autoincrement) parts.push('AUTOINCREMENT');
+        if (options.notNull) parts.push('NOT NULL');
+        if (options.unique) parts.push('UNIQUE');
+
+        // 处理默认值
+        if (options.default !== undefined) {
+          let defaultValue;
+          if (typeof options.default === 'object' &amp;&amp; 'raw' in options.default) {
+            // 支持SQL原生函数，如DATETIME('now')
+            defaultValue = `(${options.default.raw})`;
+          } else {
+            // 普通值处理，字符串添加引号
+            defaultValue = typeof options.default === 'string'
+              ? `'${options.default}'`
+              : options.default;
+          }
+          parts.push(`DEFAULT ${defaultValue}`);
+        }
+
+        fields.push(parts.join(' '));
+      }
+
+      // 生成并执行建表SQL
+      const sql = `CREATE TABLE IF NOT EXISTS ${table} (
+        ${fields.join(',\n  ')}
+      )`;
+      this.db.prepare(sql).run();
+    }
+
+    /**
+    * 插入数据
+    * @param data - 符合表结构的待插入数据（不含自增字段）
+    * @returns 插入后的数据（包含自增id）
+    */
+    insert(data: ExtractData&lt;T&gt;): DataWithId&lt;ExtractData&lt;T&gt;&gt; {
+      const fields = Object.keys(data) as (keyof ExtractData&lt;T&gt;)[];
+      const placeholders = fields.map(field =&gt; `@${String(field)}`);
+
+      const sql = `INSERT INTO ${this.table} (${fields.join(',')})
+                  VALUES (${placeholders.join(',')})`;
+      const result = this.db.prepare(sql).run(data);
+
+      return { ...data, id: result.lastInsertRowid as number };
+    }
+
+    /**
+    * 插入或更新数据（Upsert）
+    * 当冲突字段存在重复值时执行更新，否则执行插入
+    * @param data - 待插入/更新的数据
+    * @param options - Upsert配置选项
+    * @returns 操作后的完整数据
+    * @throws 当冲突字段不存在于表结构中时抛出错误
+    */
+    upsert(
+      data: ExtractData&lt;T&gt;,
+      options: UpsertOptions
+    ): DataWithId&lt;ExtractData&lt;T&gt;&gt; {
+      // 验证冲突字段有效性
+      options.conflictPaths.forEach(path =&gt; {
+        if (!Object.keys(this.schema).includes(path)) {
+          throw new Error(`upsert: Conflict path "${path}" does not exist in schema`);
+        }
+      });
+
+      const insertFields = Object.keys(data) as (keyof ExtractData&lt;T&gt;)[];
+      const insertPlaceholders = insertFields.map(field =&gt; `@${String(field)}`);
+      const conflictClause = `ON CONFLICT(${options.conflictPaths.join(',')})`;
+
+      // 筛选需要更新的字段（排除冲突字段）
+      const updateFields = insertFields.filter(
+        field =&gt; !options.conflictPaths.includes(String(field))
+      );
+
+      // 无更新内容且配置了跳过选项时的处理
+      if (options.skipUpdateIfNoValuesChanged &amp;&amp; updateFields.length === 0) {
+        const existing = this.findExistingByConflictPaths(data, options.conflictPaths);
+        return existing ? existing : this.insert(data);
+      }
+
+      // 生成更新语句，自动更新update_at字段
+      const updateAssignments = [
+        ...updateFields.map(
+          field =&gt; `${String(field)} = EXCLUDED.${String(field)}`
+        ),
+        "update_at = DATETIME('now', 'localtime')",
+      ];
+
+      // 执行Upsert操作并返回结果
+      const sql = `
+        INSERT INTO ${this.table} (${insertFields.join(',')})
+        VALUES (${insertPlaceholders.join(',')})
+        ${conflictClause} DO UPDATE SET
+          ${updateAssignments.join(',')}
+        RETURNING *
+      `;
+
+      const result = this.db.prepare(sql).get(data) as DataWithId&lt;ExtractData&lt;T&gt;&gt;;
+      return result;
+    }
+
+    /**
+    * 根据冲突字段查询已有数据
+    * 用于Upsert操作前判断数据是否已存在
+    * @param data - 待查询的数据
+    * @param conflictPaths - 冲突字段数组
+    * @returns 存在则返回数据，否则返回null
+    */
+    findExistingByConflictPaths(
+      data: ExtractData&lt;T&gt;,
+      conflictPaths: string[]
+    ): DataWithId&lt;ExtractData&lt;T&gt;&gt; | null {
+      const whereClauses = conflictPaths.map(path =&gt; `${path} = @${path}`);
+      const sql = `
+        SELECT * FROM ${this.table}
+        WHERE ${whereClauses.join(' AND ')}
+      `;
+
+      const queryData = conflictPaths.reduce((obj, path) =&gt; {
+        obj[path] = (data as Record&lt;string, any&gt;)[path];
+        return obj;
+      }, {} as Record&lt;string, any&gt;);
+
+      return this.db.prepare(sql).get(queryData) as DataWithId&lt;ExtractData&lt;T&gt;&gt; | null;
+    }
+
+    /**
+    * 根据ID更新数据
+    * @param id - 要更新的数据ID
+    * @param data - 待更新的字段（部分字段）
+    * @returns 更新是否成功（是否有数据被修改）
+    */
+    update(id: number, data: Partial&lt;ExtractData&lt;T&gt;&gt;): boolean {
+      // 自动添加更新时间
+      const updateData = {
+        ...data,
+        update_at: { raw: "DATETIME('now', 'localtime')" },
+      };
+
+      if (Object.keys(updateData).length === 0) return false;
+
+      // 生成更新语句，支持SQL原生函数
+      const updates = Object.entries(updateData).map(([key, value]) =&gt; {
+        if (typeof value === 'object' &amp;&amp; 'raw' in value) {
+          return `${key} = ${value.raw}`;
+        }
+        return `${key} = @${key}`;
+      });
+
+      const sql = `UPDATE ${this.table} SET ${updates.join(',')} WHERE id = @id`;
+
+      // 整理参数，排除SQL原生函数值
+      const params = Object.entries(updateData).reduce(
+        (obj, [key, value]) =&gt; {
+          if (!(typeof value === 'object' &amp;&amp; 'raw' in value)) {
+            obj[key] = value;
+          }
+          return obj;
+        },
+        { id } as Record&lt;string, any&gt;
+      );
+
+      return this.db.prepare(sql).run(params).changes &gt; 0;
+    }
+
+    /**
+    * 按条件查询单条数据
+    * @param data - 查询条件（字段键值对）
+    * @returns 查询到的数据或null
+    * @throws 当查询条件为空或包含不存在的字段时抛出错误
+    */
+    findOneBy(data: Partial&lt;ExtractData&lt;T&gt;&gt;): DataWithId&lt;ExtractData&lt;T&gt;&gt; | null {
+      const entries = Object.entries(data);
+      if (entries.length === 0) {
+        throw new Error('findOneBy: query conditions cannot be null');
+      }
+
+      // 验证查询字段有效性
+      entries.forEach(([key]) =&gt; {
+        if (!Object.keys(this.schema).includes(key)) {
+          throw new Error(`findOneBy: ${key} doesn't exist in table ${this.table}`);
+        }
+      });
+
+      const whereClauses = entries.map(([key]) =&gt; `${key} = @${key}`);
+      const whereSql = whereClauses.join(' AND ');
+
+      const sql = `
+        SELECT * FROM ${this.table}
+        WHERE ${whereSql}
+        LIMIT 1
+      `;
+
+      const result = this.db.prepare(sql).get(data) as DataWithId&lt;ExtractData&lt;T&gt;&gt; | undefined;
+      return result || null;
+    }
+
+    /**
+    * 查询表中所有数据
+    * @returns 所有数据的数组
+    */
+    findAll(): DataWithId&lt;ExtractData&lt;T&gt;&gt;[] {
+      const sql = `SELECT * FROM ${this.table}`;
+      return this.db.prepare(sql).all() as DataWithId&lt;ExtractData&lt;T&gt;&gt;[];
+    }
+
+    /**
+    * 按条件删除单条数据
+    * @param data - 删除条件（字段键值对）
+    * @returns 删除是否成功（是否有数据被删除）
+    * @throws 当删除条件为空或包含不存在的字段时抛出错误
+    */
+    deleteOneBy(data: Partial&lt;ExtractData&lt;T&gt;&gt;): boolean {
+      const entries = Object.entries(data);
+      if (entries.length === 0) {
+        throw new Error('deleteOneBy: query conditions cannot be null');
+      }
+
+      // 验证删除字段有效性
+      entries.forEach(([key]) =&gt; {
+        if (!Object.keys(this.schema).includes(key)) {
+          throw new Error(`deleteOneBy: ${key} doesn't exist in table ${this.table}`);
+        }
+      });
+
+      const whereClauses = entries.map(([key]) =&gt; `${key} = @${key}`);
+      const whereSql = whereClauses.join(' AND ');
+
+      const sql = `
+        DELETE FROM ${this.table}
+        WHERE ${whereSql}
+        LIMIT 1
+      `;
+
+      return this.db.prepare(sql).run(data).changes &gt; 0;
+    }
+
+    /**
+    * 删除表中所有数据
+    * @returns 删除的记录数量
+    */
+    deleteAll(): number {
+      const sql = `DELETE FROM ${this.table}`;
+      const result = this.db.prepare(sql).run();
+      return result.changes;
+    }
+  }
+</code></pre>
+</li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="搭建-ts-开发环境"><a class="header" href="#搭建-ts-开发环境">搭建 ts 开发环境</a></h1>
 <ul>
@@ -30796,7 +31515,6 @@ async function concurrentControlWithRetry(
             window.setTimeout(window.print, 100);
         });
         </script>
-
 
     </div>
     </body>

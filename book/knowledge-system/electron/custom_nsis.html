@@ -31,25 +31,17 @@
         <!-- Custom theme stylesheets -->
 
 
-<<<<<<< HEAD
         <!-- Provide site root and default themes to javascript -->
         <script>
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
             window.path_to_searchindex_js = "../searchindex.js";
-=======
-        <!-- Provide site root to javascript -->
-        <script>
-            var path_to_root = "../";
-            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
->>>>>>> 06da6223ae92b018cc39e02c788a8eb50ff00e2d
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc.js"></script>
     </head>
     <body>
-<<<<<<< HEAD
     <div id="mdbook-help-container">
         <div id="mdbook-help-popup">
             <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
@@ -61,19 +53,12 @@
             </div>
         </div>
     </div>
-=======
->>>>>>> 06da6223ae92b018cc39e02c788a8eb50ff00e2d
     <div id="body-container">
         <!-- Work around some values being stored in localStorage wrapped in quotes -->
         <script>
             try {
-<<<<<<< HEAD
                 let theme = localStorage.getItem('mdbook-theme');
                 let sidebar = localStorage.getItem('mdbook-sidebar');
-=======
-                var theme = localStorage.getItem('mdbook-theme');
-                var sidebar = localStorage.getItem('mdbook-sidebar');
->>>>>>> 06da6223ae92b018cc39e02c788a8eb50ff00e2d
 
                 if (theme.startsWith('"') && theme.endsWith('"')) {
                     localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
@@ -87,12 +72,8 @@
 
         <!-- Set the theme before any content is loaded, prevents flash -->
         <script>
-<<<<<<< HEAD
             const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
             let theme;
-=======
-            var theme;
->>>>>>> 06da6223ae92b018cc39e02c788a8eb50ff00e2d
             try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
             if (theme === null || theme === undefined) { theme = default_theme; }
             const html = document.documentElement;
@@ -105,19 +86,13 @@
 
         <!-- Hide / unhide sidebar before it is displayed -->
         <script>
-<<<<<<< HEAD
             let sidebar = null;
             const sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
-=======
-            var sidebar = null;
-            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
->>>>>>> 06da6223ae92b018cc39e02c788a8eb50ff00e2d
             if (document.body.clientWidth >= 1080) {
                 try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
                 sidebar = sidebar || 'visible';
             } else {
                 sidebar = 'hidden';
-<<<<<<< HEAD
                 sidebar_toggle.checked = false;
             }
             if (sidebar === 'visible') {
@@ -125,12 +100,6 @@
             } else {
                 html.classList.remove('sidebar-visible');
             }
-=======
-            }
-            sidebar_toggle.checked = sidebar === 'visible';
-            html.classList.remove('sidebar-visible');
-            html.classList.add("sidebar-" + sidebar);
->>>>>>> 06da6223ae92b018cc39e02c788a8eb50ff00e2d
         </script>
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
@@ -157,21 +126,14 @@
                             <i class="fa fa-paint-brush"></i>
                         </button>
                         <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
-<<<<<<< HEAD
                             <li role="none"><button role="menuitem" class="theme" id="default_theme">Auto</button></li>
-=======
->>>>>>> 06da6223ae92b018cc39e02c788a8eb50ff00e2d
                             <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
                         </ul>
-<<<<<<< HEAD
                         <button id="search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="searchbar">
-=======
-                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
->>>>>>> 06da6223ae92b018cc39e02c788a8eb50ff00e2d
                             <i class="fa fa-search"></i>
                         </button>
                     </div>
@@ -188,16 +150,12 @@
 
                 <div id="search-wrapper" class="hidden">
                     <form id="searchbar-outer" class="searchbar-outer">
-<<<<<<< HEAD
                         <div class="search-wrapper">
                             <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
                             <div class="spinner-wrapper">
                                 <i class="fa fa-spinner fa-spin"></i>
                             </div>
                         </div>
-=======
-                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
->>>>>>> 06da6223ae92b018cc39e02c788a8eb50ff00e2d
                     </form>
                     <div id="searchresults-outer" class="searchresults-outer hidden">
                         <div id="searchresults-header" class="searchresults-header"></div>
@@ -391,7 +349,6 @@ SectionEnd
 <p><code>nsis_publish/SetupScripts/nim/ui_nim_setup.nsh</code> 中是主要逻辑</p>
 </li>
 </ul>
-<<<<<<< HEAD
 <div class="table-wrapper"><table><thead><tr><th>方法名</th><th>说明</th></tr></thead><tbody>
 <tr><td>DUIPage</td><td>安装入口脚本，用于初始化一些信息</td></tr>
 <tr><td>un.DUIPage</td><td>卸载入口脚本</td></tr>
@@ -813,8 +770,6 @@ FunctionEnd
 <tr><td>float</td><td>BOOL</td><td>false</td><td>是否使用绝对定位</td></tr>
 </tbody></table>
 </div>
-=======
->>>>>>> 06da6223ae92b018cc39e02c788a8eb50ff00e2d
 <h2 id="参考链接"><a class="header" href="#参考链接">参考链接</a></h2>
 <ul>
 <li><a href="https://github.com/leeqia/nsNiuniuSkin">nsNiuniuSkin github</a></li>
@@ -871,10 +826,7 @@ FunctionEnd
         <!-- Custom JS scripts -->
 
 
-<<<<<<< HEAD
 
-=======
->>>>>>> 06da6223ae92b018cc39e02c788a8eb50ff00e2d
     </div>
     </body>
 </html>

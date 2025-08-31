@@ -32,34 +32,21 @@
         <!-- Custom theme stylesheets -->
 
 
-        <!-- Provide site root and default themes to javascript -->
+        <!-- Provide site root to javascript -->
         <script>
-            const path_to_root = "";
-            const default_light_theme = "light";
-            const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex.js";
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc.js"></script>
     </head>
     <body>
-    <div id="mdbook-help-container">
-        <div id="mdbook-help-popup">
-            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
-            <div>
-                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
-                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
-                <p>Press <kbd>?</kbd> to show this help</p>
-                <p>Press <kbd>Esc</kbd> to hide this help</p>
-            </div>
-        </div>
-    </div>
     <div id="body-container">
         <!-- Work around some values being stored in localStorage wrapped in quotes -->
         <script>
             try {
-                let theme = localStorage.getItem('mdbook-theme');
-                let sidebar = localStorage.getItem('mdbook-sidebar');
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
 
                 if (theme.startsWith('"') && theme.endsWith('"')) {
                     localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
@@ -73,8 +60,7 @@
 
         <!-- Set the theme before any content is loaded, prevents flash -->
         <script>
-            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
-            let theme;
+            var theme;
             try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
             if (theme === null || theme === undefined) { theme = default_theme; }
             const html = document.documentElement;
@@ -87,20 +73,17 @@
 
         <!-- Hide / unhide sidebar before it is displayed -->
         <script>
-            let sidebar = null;
-            const sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            var sidebar = null;
+            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
             if (document.body.clientWidth >= 1080) {
                 try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
                 sidebar = sidebar || 'visible';
             } else {
                 sidebar = 'hidden';
-                sidebar_toggle.checked = false;
             }
-            if (sidebar === 'visible') {
-                sidebar_toggle.checked = true;
-            } else {
-                html.classList.remove('sidebar-visible');
-            }
+            sidebar_toggle.checked = sidebar === 'visible';
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
         </script>
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
@@ -127,14 +110,13 @@
                             <i class="fa fa-paint-brush"></i>
                         </button>
                         <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
-                            <li role="none"><button role="menuitem" class="theme" id="default_theme">Auto</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
                         </ul>
-                        <button id="search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="searchbar">
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
                             <i class="fa fa-search"></i>
                         </button>
                     </div>
@@ -151,12 +133,7 @@
 
                 <div id="search-wrapper" class="hidden">
                     <form id="searchbar-outer" class="searchbar-outer">
-                        <div class="search-wrapper">
-                            <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
-                            <div class="spinner-wrapper">
-                                <i class="fa fa-spinner fa-spin"></i>
-                            </div>
-                        </div>
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
                     </form>
                     <div id="searchresults-outer" class="searchresults-outer hidden">
                         <div id="searchresults-header" class="searchresults-header"></div>
@@ -26793,6 +26770,7 @@ the module (for instance, using `npm rebuild` or `npm install`).
 <h2 id="electron-builder打包之后exe图标问题"><a class="header" href="#electron-builder打包之后exe图标问题">electron-builder打包之后exe图标问题</a></h2>
 <ul>
 <li>出现一种情况，打包之后的 <code>win-unpacked</code> 目录下 exe 文件的图标和右键属性详细信息都是正常的，用自定义的 nsis 打包之后的安装包安装完成之后的软件打开后，任务栏的图标确变成了 electron 默认图标，并且安装目录下的 exe 文件的图标和属性详细信息也变成了 electron 默认的。这有可能是 windows 系统对于图标的缓存造成的，重启系统这个问题就自动好了</li>
+<li>windows 系统图标缓存目录在 <code>C:\Users\用户名\AppData\Local\Microsoft\Windows\Explorer</code> 下，删除所有 <code>iconcache</code> 开头的文件即可清除图标缓存</li>
 </ul>
 <h2 id="参考链接"><a class="header" href="#参考链接">参考链接</a></h2>
 <ul>
@@ -30186,6 +30164,18 @@ H2 --&gt; H3[根据 IV 和 秘钥实例化加密器]
 H3 --&gt; H4[通过 update 处理大部分明文，final 处理最后一块并完成填充，拼接得到完整密文]
 H4 --&gt; H5[将 16 字节 IV 与密文拼接，作为最终加密结果]
 </pre>
+<h2 id="better-sqlite3-multiple-ciphers"><a class="header" href="#better-sqlite3-multiple-ciphers">better-sqlite3-multiple-ciphers</a></h2>
+<ul>
+<li><code>better-sqlite3-multiple-ciphers</code> 是增加了加密功能的 <code>better-sqlite3</code>，使用了 <code>SQLite3MultipleCiphers</code> 以支持多种加密算法</li>
+<li>只需要安装 <code>better-sqlite3-multiple-ciphers</code> 然后在代码里这样写就可以加密数据库文件了
+<pre><code class="language-ts">  import Database from 'better-sqlite3-multiple-ciphers';
+  const db = new Database('foobar.db', options);
+  db.pragma(`key='secret-key'`);
+</code></pre>
+</li>
+<li>这里的 key 的值就是密码明文，而我这里想要做的事情就是来劫持 <code>better-sqlite3-multiple-ciphers</code> 的接口，然后我们可以传入加密后的字符串，然后在 c++ 代码中解密之后再拿到明文密码传递给 sqlite</li>
+<li>经过试验，最后成功修改了 db.exec 方法，可以实现解密 PRAGMA key 语句和 PRAGMA rekey 传递的加密字符串</li>
+</ul>
 <h2 id="参考链接-9"><a class="header" href="#参考链接-9">参考链接</a></h2>
 <ul>
 <li><a href="https://www.npmjs.com/package/better-sqlite3-multiple-ciphers">better-sqlite3-multiple-ciphers</a></li>
@@ -30524,6 +30514,44 @@ function printDeck(deck: Deck) {
 const deck = createDeck();
 printDeck(deck);
 </code></pre>
+<h2 id="扩展知识-位枚举枚举的位运算"><a class="header" href="#扩展知识-位枚举枚举的位运算">扩展知识 位枚举（枚举的位运算）</a></h2>
+<ul>
+<li>枚举的位运算针对数字枚举</li>
+</ul>
+<pre><code class="language-ts">enum Permission {
+  Read = 1, // 0001
+  Write = 2, // 0010
+  Create = 4, // 0100
+  Delete = 8, // 1000
+}
+
+// 1 如何组合权限 使用或运算
+// 0001
+// 或
+// 0010
+// 0011
+
+// 或运算将两种权限合并起来
+let p: Permission = Permission.Read | Permission.Write;
+
+// 2 如何判断是否拥有某个权限
+// 0011
+// 且
+// 0010
+// 0010
+function hasPermission(target: Permission, per: Permission) {
+  return (target &amp; per) === per;
+}
+
+hasPermission(p, Permission.Read);
+
+// 3 如何删除某个权限
+// 0011
+// 异或
+// 0010
+// 0001
+p = p ^ Permission.Write;
+</code></pre>
 <h2 id="模块化-1"><a class="header" href="#模块化-1">模块化</a></h2>
 <ul>
 <li>ts config 模块化相关配置</li>
@@ -30573,6 +30601,9 @@ import { name, sum } from './index';
 console.log(name);
 console.log(sum(1, 2));
 </code></pre>
+<ul>
+<li>下面是编译成 commonjs 的结果</li>
+</ul>
 <pre><code class="language-js">// index.js
 'use strict';
 Object.defineProperty(exports, '__esModule', { value: true });
@@ -30589,6 +30620,91 @@ Object.defineProperty(exports, '__esModule', { value: true });
 const index_1 = require('./index');
 console.log(index_1.name);
 console.log((0, index_1.sum)(1, 2));
+</code></pre>
+<ul>
+<li>如何在 ts 中书写 commonjs 模块代码</li>
+</ul>
+<pre><code class="language-ts">// 导出
+export = name;
+// 导入
+import name = require('name');
+
+// 这样写会被编译成 commonjs，并且保留类型提示
+</code></pre>
+<ul>
+<li>模块解析：从什么位置寻找模块，tsconfig 中的 <code>moduleResolution</code> 配置项
+<ul>
+<li>'node16' 或 'nodenext'：适用于现代版本的 Node.js。Node.js v12 及更高版本同时支持 ECMAScript 导入（import）和 CommonJS 引入（require），二者采用不同的解析算法。这两个 moduleResolution 值在与对应的 module 配置项结合使用时，会根据输出的 JavaScript 代码中 Node.js 实际识别的是 import 还是 require，自动选择对应的解析算法。</li>
+<li>'node10'（此前名为 'node'）：适用于 v10 之前的旧版本 Node.js，这类版本仅支持 CommonJS 的 require 语法。在现代代码中，你大概率无需使用 node10 选项。</li>
+<li>'bundler'：适用于打包工具（如 Webpack、Vite 等）场景。与 node16 和 nodenext 类似，该模式支持识别 package.json 中的 "imports" 和 - "exports" 字段；但与 Node.js 相关的解析模式不同，bundler 模式从不要求在相对路径导入语句中指定文件扩展名（如 .js、.ts）。
+'classic'：是 TypeScript 1.6 版本发布前使用的解析模式，不应再使用。</li>
+</ul>
+</li>
+</ul>
+<h2 id="interface-接口"><a class="header" href="#interface-接口">interface 接口</a></h2>
+<ul>
+<li>接口： 用于描述对象，和类型别名有一些区别，比如约束类方面</li>
+</ul>
+<pre><code class="language-ts">interface User {
+  readonly id: number;
+  name: string;
+  age: number;
+  sayHello: () =&gt; void;
+  doSomething(): void;
+}
+
+// 接口的继承
+interface A {
+  t1: string;
+}
+interface B {
+  t2: string;
+}
+
+interface C extends A, B {
+  t3: string;
+}
+</code></pre>
+<ul>
+<li>readonly 只读修饰符，属性是只读的不能修改</li>
+</ul>
+<pre><code class="language-ts">// 只读数组，这个数组的改变元素的方法都无法使用了
+const arr: readonly number[] = [1, 2, 3];
+</code></pre>
+<h2 id="类型兼容性"><a class="header" href="#类型兼容性">类型兼容性</a></h2>
+<ul>
+<li>类型兼容性，如果 B 类型能够赋值给类型 A，则 B 和 A 类型就兼容了
+<ul>
+<li>鸭子辩型法 子结构辩型法，目标类型需要某些特征，而赋值的类型只要满足该特征即可，例如只要会嘎嘎叫并且会游泳就是鸭子</li>
+<li>但是直接使用对象字面量赋值的时候，会进行更加严格的判断</li>
+</ul>
+</li>
+</ul>
+<pre><code class="language-ts">interface Duck {
+  sound: '嘎嘎嘎';
+  swim(): void;
+}
+
+let person = {
+  name: '伪装成鸭子的人',
+  age: 11,
+  sound: '嘎嘎嘎' as '嘎嘎嘎',
+  swim() {
+    console.log(`${this.name}正在游泳并且发出了${this.sound}的声音`);
+  },
+};
+
+let duck: Duck = person;
+
+// 下面对象字面量直接赋值，ts 会直接报错
+let duck: Duck = {
+  name: '伪装成鸭子的人',
+  age: 11,
+  sound: '嘎嘎嘎' as '嘎嘎嘎',
+  swim() {
+    console.log(`${this.name}正在游泳并且发出了${this.sound}的声音`);
+  },
+};
 </code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="eslint代码规范"><a class="header" href="#eslint代码规范">ESLint代码规范</a></h1>
 <h2 id="基础使用-1"><a class="header" href="#基础使用-1">基础使用</a></h2>
@@ -32130,7 +32246,6 @@ async function concurrentControlWithRetry(
             window.setTimeout(window.print, 100);
         });
         </script>
-
 
     </div>
     </body>

@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>通用并发控制函数 - knowledge-system</title>
+        <title>js 小技巧 - knowledge-system</title>
 
 
         <!-- Custom HTML head -->
@@ -152,119 +152,48 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="并发控制"><a class="header" href="#并发控制">并发控制</a></h1>
-<pre><code class="language-js">/**
- * 通用并发控制函数
- * @param {Array} tasks - 任务数组，每个任务是一个返回Promise的函数
- * @param {number} concurrency - 最大并发数
- * @returns {Promise} - 当所有任务完成时解析的Promise
- */
-async function concurrentControl(tasks, concurrency = 4) {
-  const results = new Array(tasks.length);
-  let index = 0;
-  let completed = 0;
+                        <h1 id="js-小技巧"><a class="header" href="#js-小技巧">js 小技巧</a></h1>
+<ul>
+<li>
+<p>剔除对象中不需要的属性生成新的对象，常用于组装请求的参数</p>
+<pre><code class="language-js">const originalObj = {
+  name: '张三',
+  age: 25,
+  gender: '男',
+  address: '北京市',
+  phone: '123456789',
+  email: 'zhangsan@example.com',
+};
 
-  return new Promise((resolve) =&gt; {
-    // 创建指定数量的工作线程
-    const workers = Array(Math.min(concurrency, tasks.length))
-      .fill()
-      .map(async () =&gt; {
-        while (index &lt; tasks.length) {
-          const currentIndex = index++;
-          try {
-            // 执行当前任务并存储结果
-            results[currentIndex] = await tasks[currentIndex]();
-          } catch (error) {
-            // 存储错误信息
-            results[currentIndex] = error;
-          } finally {
-            // 任务完成计数
-            if (++completed === tasks.length) {
-              resolve(results);
-            }
-          }
-        }
-      });
+const { age, phone, ...newObj } = originalObj;
 
-    // 等待所有工作线程完成
-    Promise.allSettled(workers);
-  });
+// 剔除不需要的属性
+function excludeProperties(obj, propsToRemove) {
+  const propsSet = new Set(propsToRemove);
+  return Object.fromEntries(
+    Object.entries(obj).filter(([key]) =&gt; !propsSet.has(key))
+  );
 }
 
-/**
- * 通用并发控制函数（带错误重试）
- * @param {Array} tasks - 任务数组，每个任务是一个返回Promise的函数
- * @param {number} concurrency - 最大并发数
- * @param {number} maxRetries - 每个任务的最大重试次数
- * @returns {Promise} - 当所有任务完成时解析的Promise，包含所有结果
- */
-async function concurrentControlWithRetry(
-  tasks,
-  concurrency = 4,
-  maxRetries = 3
-) {
-  const results = new Array(tasks.length);
-  let index = 0;
-  let completed = 0;
-
-  return new Promise((resolve) =&gt; {
-    // 创建工作线程
-    const workers = Array(Math.min(concurrency, tasks.length))
-      .fill()
-      .map(async () =&gt; {
-        while (index &lt; tasks.length) {
-          const currentIndex = index++;
-          let retries = 0;
-          let lastError;
-
-          // 执行带重试的任务
-          while (retries &lt;= maxRetries) {
-            try {
-              results[currentIndex] = await tasks[currentIndex]();
-              break; // 成功后跳出重试循环
-            } catch (error) {
-              lastError = error;
-              console.warn(
-                `Task ${currentIndex} failed (attempt ${
-                  retries + 1
-                }/${maxRetries}):`,
-                error.message
-              );
-              retries++;
-
-              if (retries &gt; maxRetries) {
-                // 超过最大重试次数，记录错误
-                results[currentIndex] = new Error(
-                  `Task ${currentIndex} failed after ${maxRetries} retries: ${lastError.message}`
-                );
-              }
-            }
-          }
-
-          // 无论成功或失败都算完成一个任务
-          if (++completed === tasks.length) {
-            resolve(results);
-          }
-        }
-      });
-
-    // 等待所有工作线程完成
-    Promise.allSettled(workers);
-  });
+// 只保留指定的属性
+function pickProperties(obj, propsToKeep) {
+  const propsSet = new Set(propsToKeep);
+  return Object.fromEntries(
+    Object.entries(obj).filter(([key]) =&gt; propsSet.has(key))
+  );
 }
 </code></pre>
+</li>
+</ul>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../frontend_practice/ts_react.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../skill/layout_skill.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../skill/layout_skill.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
-                                <i class="fa fa-angle-right"></i>
-                            </a>
 
                         <div style="clear: both"></div>
                     </nav>
@@ -272,13 +201,10 @@ async function concurrentControlWithRetry(
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../frontend_practice/ts_react.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../skill/layout_skill.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../skill/layout_skill.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
-                        <i class="fa fa-angle-right"></i>
-                    </a>
             </nav>
 
         </div>

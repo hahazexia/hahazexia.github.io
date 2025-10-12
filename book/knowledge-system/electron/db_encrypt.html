@@ -159,7 +159,7 @@
 <li>拉取 <code>better-sqlite3-multiple-ciphers</code> 源码</li>
 <li>生成 AES 秘钥（32 字节，64 位十六进制字符串），然后将其转换成字节数组，硬编码到数据库源码 C++ 代码中</li>
 <li>修改数据库源码 <code>JS_exec</code> 方法，此方法用于执行 sql 语句，增加劫持 <code>PRAGMA key='xxx'</code> 和 <code>PRAGMA rekey='xxx'</code> 的逻辑，使用之前硬编码的秘钥将 key 和 rekey 解密，得到密码原文，然后再传递给 sqlite 作为 db 文件的密码</li>
-<li>编译修改好的数据库生成 .node 原生模块，之后使用时 <code>this.db.exec("PRAGMA key='xxx'")</code> exec 传递的 PRAGMA 语句都会被劫持然后走解密流程，可以使用 <code>SQLiteStudio</code> 软件打开加密的数据库，选择数据库类型为 <code>WxSQLite3</code>，密码类型为 <code>sqleet: ChaCha20-Poly1305</code>，然后输入明文密码即可打开数据库文件</li>
+<li>编译修改好的数据库生成 .node 原生模块，之后使用时 <code>this.db.exec("PRAGMA key='xxx'")</code> exec 传递的 PRAGMA 语句都会被劫持然后走解密流程，可以使用 <a href="https://sqlitestudio.pl/">SQLiteStudio</a> 软件打开加密的数据库，选择数据库类型为 <code>WxSQLite3</code>，密码类型为 <code>sqleet: ChaCha20-Poly1305</code>，然后输入明文密码即可打开数据库文件</li>
 </ul>
 </li>
 </ul>
@@ -280,9 +280,9 @@ console.log('转换完成，密钥已写入src/key.h');
 <p>在入口文件 <code>better_sqlite3.lzz</code> 新增一行引入刚才生成的 key</p>
 <pre><code class="language-c++">#include "key.h"
 </code></pre>
-<ul>
-<li>入口文件 <code>better_sqlite3.lzz</code> 引入使用到的头文件，并且修改 <code>binding.gyp</code> 配置文件，因为 AES 的解密会用到 openssl，需要引入 openssl 的头文件，因此需要在系统上安装 openssl，windows 的版本在这里下载 <a href="https://slproweb.com/products/Win32OpenSSL.html">https://slproweb.com/products/Win32OpenSSL.html</a></li>
-</ul>
+</li>
+<li>
+<p>入口文件 <code>better_sqlite3.lzz</code> 引入使用到的头文件，并且修改 <code>binding.gyp</code> 配置文件，因为 AES 的解密会用到 openssl，需要引入 openssl 的头文件，因此需要在系统上安装 openssl，windows 的版本在这里下载 <a href="https://slproweb.com/products/Win32OpenSSL.html">https://slproweb.com/products/Win32OpenSSL.html</a></p>
 <pre><code class="language-c++">#include &lt;openssl/aes.h&gt;
 #include &lt;openssl/rand.h&gt;
 #include &lt;fstream&gt;
@@ -612,7 +612,7 @@ NODE_METHOD(JS_exec)
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../typescript/base.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../electron/auto_start_up.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -626,7 +626,7 @@ NODE_METHOD(JS_exec)
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../typescript/base.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../electron/auto_start_up.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

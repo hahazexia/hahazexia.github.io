@@ -1,49 +1,55 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Markdown Resume Editor</title>
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
     <div class="container">
-        <div class="header no-print">
-            <div class="header-left">
-                <h1>Markdown Resume Editor</h1>
-            </div>
-            <div class="header-right">
-                <button id="btn-import">Import</button>
-                <button id="btn-export">Export</button>
-                <button id="btn-pdf">Export PDF</button>
-            </div>
+      <div class="header no-print">
+        <div class="header-left">
+          <h1>Markdown Resume Editor</h1>
         </div>
-        <div class="toolbar no-print">
-            <button id="btn-bold" title="Bold">B</button>
-            <button id="btn-italic" title="Italic">I</button>
-            <button id="btn-h1" title="Heading 1">H1</button>
-            <button id="btn-h2" title="Heading 2">H2</button>
-            <button id="btn-h3" title="Heading 3">H3</button>
-            <button id="btn-ul" title="Unordered List">UL</button>
-            <button id="btn-ol" title="Ordered List">OL</button>
-            <button id="btn-link" title="Link">Link</button>
-            <button id="btn-image" title="Image">Img</button>
-            <button id="btn-table" title="Table">Table</button>
-            <button id="btn-hr" title="Horizontal Rule">HR</button>
-            <span class="separator"></span>
-            <button id="btn-clear">Clear</button>
+        <div class="header-right">
+          <button id="btn-import">Import</button>
+          <button id="btn-export">Export</button>
+          <button id="btn-pdf">Export PDF</button>
         </div>
-        <div class="main-content">
-            <div class="editor-panel no-print">
-                <textarea id="markdown-input" placeholder="Enter Markdown content here..."></textarea>
-            </div>
-            <div class="preview-panel">
-                <div id="preview-output"></div>
-            </div>
+      </div>
+      <div class="toolbar no-print">
+        <button id="btn-bold" title="Bold">B</button>
+        <button id="btn-italic" title="Italic">I</button>
+        <button id="btn-h1" title="Heading 1">H1</button>
+        <button id="btn-h2" title="Heading 2">H2</button>
+        <button id="btn-h3" title="Heading 3">H3</button>
+        <button id="btn-ul" title="Unordered List">UL</button>
+        <button id="btn-ol" title="Ordered List">OL</button>
+        <button id="btn-link" title="Link">Link</button>
+        <button id="btn-image" title="Image">Img</button>
+        <button id="btn-table" title="Table">Table</button>
+        <button id="btn-hr" title="Horizontal Rule">HR</button>
+        <span class="separator"></span>
+        <button id="btn-clear">Clear</button>
+      </div>
+      <div class="main-content">
+        <div class="editor-panel no-print">
+          <textarea
+            id="markdown-input"
+            placeholder="Enter Markdown content here..."
+          ></textarea>
         </div>
+        <div class="preview-panel">
+          <div id="preview-output"></div>
+        </div>
+      </div>
     </div>
-    <input type="file" id="file-input" accept=".md" style="display: none;">
+    <input type="file" id="file-input" accept=".md" style="display: none" />
+    <script src="./jspdf.umd.min.js"></script>
+    <script src="./polyfills.umd.js"></script>
+    <script src="./alibaba-font.js"></script>
     <script src="markdown.js"></script>
     <script src="editor.js"></script>
-</body>
+  </body>
 </html>

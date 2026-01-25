@@ -223,6 +223,13 @@ body {
     list-style-position: inside;
 }
 
+/* 只有嵌套列表才有缩进 */
+#preview-output ul ul, #preview-output ul ol,
+#preview-output ol ul, #preview-output ol ol {
+    margin: 2px 0;
+    padding-left: 20px;
+}
+
 #preview-output li {
     margin: 1px 0;
     line-height: 1.3;

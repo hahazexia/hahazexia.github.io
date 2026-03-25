@@ -32,18 +32,15 @@
     <div class="result" id="result"></div>
 
     <script type="module">
-      // 导入 WASM 模块
       import init, { WasmImageInfo } from './img_info_wasm.js';
 
-      // 初始化 WASM
       async function run() {
-        await init(); // 必须先初始化
+        await init();
         console.log('✅ WASM 加载成功');
 
         const fileInput = document.getElementById('fileInput');
         const result = document.getElementById('result');
 
-        // 选择图片后自动解析
         fileInput.addEventListener('change', async e => {
           const file = e.target.files[0];
 
@@ -51,14 +48,11 @@
           if (!file) return;
 
           try {
-            // 1. 把图片转成二进制
             const buffer = await file.arrayBuffer();
             const bytes = new Uint8Array(buffer);
 
-            // 2. 调用你的 WASM 核心方法！
             const info = WasmImageInfo.from_bytes(bytes);
 
-            // 3. 显示结果
             result.innerText = `
 ✅ 解析成功！
 格式：${info.format()}
@@ -71,7 +65,6 @@
 ${info.to_string()}
           `;
 
-            // 用完释放内存（好习惯）
             info.free();
           } catch (err) {
             result.innerText = '❌ 解析失败：' + err.message;

@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>WASM 图片信息解析工具</title>
+    <style>
+      body {
+        max-width: 600px;
+        margin: 30px auto;
+        font-family: system-ui, sans-serif;
+        padding: 20px;
+      }
+      .result {
+        margin-top: 20px;
+        padding: 15px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        white-space: pre-wrap;
+        background: #f9f9f9;
+      }
+      input {
+        padding: 8px;
+        font-size: 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>选择一张图片</h2>
+    <input type="file" id="fileInput" accept="image/*" />
+
+    <img id="preview" />
+    <div class="result" id="result"></div>
+
+    <script type="module">
+      // 导入 WASM 模块
+      import init, { WasmImageInfo } from './img_info_wasm.js';
+
+      // 初始化 WASM
+      async function run() {
+        await init(); // 必须先初始化
+        console.log('✅ WASM 加载成功');
+
+        const fileInput = document.getElementById('fileInput');
+        const result = document.getElementById('result');
+
+        // 选择图片后自动解析
+        fileInput.addEventListener('change', async e => {
+          const file = e.target.files[0];
+
+          document.getElementById('preview').src = URL.createObjectURL(file);
+          if (!file) return;
+
+          try {
+            // 1. 把图片转成二进制
+            const buffer = await file.arrayBuffer();
+            const bytes = new Uint8Array(buffer);
+
+            // 2. 调用你的 WASM 核心方法！
+            const info = WasmImageInfo.from_bytes(bytes);
+
+            // 3. 显示结果
+            result.innerText = `
+✅ 解析成功！
+格式：${info.format()}
+宽度：${info.width()} px
+高度：${info.height()} px
+大小：${info.size_str()}
+字节数：${info.size_byte()}
+
+完整信息：
+${info.to_string()}
+          `;
+
+            // 用完释放内存（好习惯）
+            info.free();
+          } catch (err) {
+            result.innerText = '❌ 解析失败：' + err.message;
+          }
+        });
+      }
+
+      run();
+    </script>
+  </body>
+</html>

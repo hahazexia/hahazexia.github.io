@@ -294,6 +294,14 @@
         padding-left: 60px;
         font-size: 11px;
       }
+      #outline-panel .outline-item-active {
+        background-color: #007bff;
+        color: #fff;
+      }
+      body.dark-mode #outline-panel .outline-item-active {
+        background-color: #0056b3;
+        color: #fff;
+      }
     </style>
     <script src="./pdf.mjs" type="module"></script>
   </head>
@@ -587,7 +595,7 @@
             return;
           }
 
-          outlineData.forEach(item => {
+          outlineData.forEach((item, index) => {
             const div = document.createElement('div');
             div.className = `outline-item outline-level-${item.level}`;
             div.textContent =
@@ -597,6 +605,7 @@
             div.dataset.page = item.pageNumber
               ? item.pageNumber.toString()
               : '';
+            div.dataset.index = index.toString();
 
             if (item.pageNumber) {
               div.dataset.clickable = 'true';
@@ -608,6 +617,57 @@
             }
             outlinePanel.appendChild(div);
           });
+        }
+
+        function highlightAndScrollToCurrentPage() {
+          if (outlineData.length === 0) return;
+
+          const allItems = outlinePanel.querySelectorAll('.outline-item');
+          allItems.forEach(item => {
+            item.classList.remove('outline-item-active');
+          });
+
+          let exactMatchIndex = -1;
+          let closestIndex = -1;
+          let closestPage = -1;
+
+          outlineData.forEach((item, index) => {
+            if (item.pageNumber) {
+              if (item.pageNumber === currentPage) {
+                exactMatchIndex = index;
+              }
+              if (
+                item.pageNumber <= currentPage &&
+                item.pageNumber > closestPage
+              ) {
+                closestPage = item.pageNumber;
+                closestIndex = index;
+              }
+            }
+          });
+
+          if (exactMatchIndex !== -1) {
+            const targetItem = outlinePanel.querySelector(
+              `.outline-item[data-index="${exactMatchIndex}"]`,
+            );
+            if (targetItem) {
+              targetItem.classList.add('outline-item-active');
+              targetItem.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center',
+              });
+            }
+          } else if (closestIndex !== -1) {
+            const targetItem = outlinePanel.querySelector(
+              `.outline-item[data-index="${closestIndex}"]`,
+            );
+            if (targetItem) {
+              targetItem.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center',
+              });
+            }
+          }
         }
 
         async function initPDF(url) {
@@ -677,10 +737,10 @@
               if (canvas) {
                 canvas.style.backgroundColor = currentParams.canvasBg;
                 canvas.style.filter = `
-                invert(${currentParams.invert}%) 
-                hue-rotate(${currentParams.hue}deg) 
-                grayscale(${currentParams.grayscale}%) 
-                brightness(${currentParams.brightness}%) 
+                invert(${currentParams.invert}%)
+                hue-rotate(${currentParams.hue}deg)
+                grayscale(${currentParams.grayscale}%)
+                brightness(${currentParams.brightness}%)
                 contrast(${currentParams.contrast}%)
               `.replace(/\s+/g, ' ');
               }
@@ -827,7 +887,15 @@
           outlinePanel.classList.toggle('collapsed');
           outlinePanel.classList.toggle('expanded');
           if (outlinePanel.classList.contains('expanded') && pdfDoc) {
-            getPDFOutline();
+            // 如果目录已经加载过，直接高亮和滚动
+            if (outlineData.length > 0) {
+              highlightAndScrollToCurrentPage();
+            } else {
+              // 如果目录还未加载，先加载再高亮
+              getPDFOutline().then(() => {
+                highlightAndScrollToCurrentPage();
+              });
+            }
           }
         });
 

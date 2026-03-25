@@ -27,8 +27,12 @@ class MarkdownEditor {
 
   bindScrollSync() {
     this.textarea.addEventListener('scroll', () => {
-      const scrollPercentage = this.textarea.scrollTop / (this.textarea.scrollHeight - this.textarea.clientHeight);
-      const previewScrollTop = scrollPercentage * (this.previewPanel.scrollHeight - this.previewPanel.clientHeight);
+      const scrollPercentage =
+        this.textarea.scrollTop /
+        (this.textarea.scrollHeight - this.textarea.clientHeight);
+      const previewScrollTop =
+        scrollPercentage *
+        (this.previewPanel.scrollHeight - this.previewPanel.clientHeight);
       this.previewPanel.scrollTop = previewScrollTop;
     });
   }
@@ -49,7 +53,7 @@ class MarkdownEditor {
       this.textarea.value = saved;
     } else {
       this.textarea.value = `# Alex Morgan
-      
+
 A passionate backend engineer and cloud architecture enthusiast.
 
 ## Contact
@@ -149,7 +153,7 @@ https://github.com/alexmorgan
     });
 
     document.getElementById('btn-pdf').addEventListener('click', () => {
-      window.print();
+      this.exportToPDF();
     });
   }
 
@@ -198,6 +202,10 @@ https://github.com/alexmorgan
       a.click();
       URL.revokeObjectURL(url);
     });
+  }
+
+  exportToPDF() {
+    window.print();
   }
 }
 
